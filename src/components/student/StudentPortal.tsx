@@ -25,7 +25,16 @@ import {
 } from 'lucide-react';
 
 export const StudentPortal: React.FC = () => {
-  const { tests, activeTest, activeTestId, setActiveTestId, activeAttempt, setActiveAttempt, submitTestAttempt } = useApp();
+  const {
+    tests,
+    activeTest,
+    activeTestId,
+    isFetchingActiveTest,
+    setActiveTestId,
+    activeAttempt,
+    setActiveAttempt,
+    submitTestAttempt,
+  } = useApp();
 
   const [studentInfo, setStudentInfo] = useState<StudentInfo>({
     name: '',
@@ -38,10 +47,38 @@ export const StudentPortal: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
 
-  // If no test is selected (or if requested test link was not found):
+  if (isFetchingActiveTest) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4 animate-in fade-in duration-200">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <h2 className="text-xl font-extrabold text-slate-900">Loading Requested Mock Test...</h2>
+        <p className="text-xs text-slate-500 max-w-sm">
+          Please wait a moment while we retrieve the examination questions from the server.
+        </p>
+      </div>
+    );
+  }
+
+  // Filter tests: if real teacher tests exist, remove sample demo tests
+  const sampleIds = ['test-jee-physics-01', 'test-cs-aptitude-02'];
+  const realTeacherTests = tests.filter((t) => !sampleIds.includes(t.id));
+  const baseTests = realTeacherTests.length > 0 ? realTeacherTests : tests;
+
+  // If no test is selected:
   if (!activeTest) {
-    const publishedTests = tests.filter((t) => t.isPublished);
-    const displayTests = publishedTests.length > 0 ? publishedTests : tests;
+    let publishedTests = baseTests.filter((t) => t.isPublished);
+    if (publishedTests.length === 0) publishedTests = baseTests;
+
+    // If a direct test link was shared, restrict display to matched test if available
+    let displayTests = publishedTests;
+    if (activeTestId) {
+      const targeted = publishedTests.filter(
+        (t) => t.id === activeTestId || t.id.includes(activeTestId) || activeTestId.includes(t.id)
+      );
+      if (targeted.length > 0) {
+        displayTests = targeted;
+      }
+    }
 
     const subjects = ['All', ...Array.from(new Set(displayTests.map((t) => t.subject).filter(Boolean)))];
 

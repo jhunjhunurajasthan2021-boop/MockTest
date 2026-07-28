@@ -39,6 +39,7 @@ interface AppContextType {
   currentUser: AuthUser | null;
   activeTest: MockTest | null;
   activeTestId: string | null;
+  isFetchingActiveTest: boolean;
   setActiveTestId: (id: string | null) => void;
   activeAttempt: TestAttempt | null;
   setActiveAttempt: (attempt: TestAttempt | null) => void;
@@ -110,6 +111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [platformConfig, setPlatformConfigState] = useState<LandingPlatformConfig>(DEFAULT_PLATFORM_CONFIG);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [activeTestId, setActiveTestIdState] = useState<string | null>(null);
+  const [isFetchingActiveTest, setIsFetchingActiveTest] = useState<boolean>(false);
   const [activeAttempt, setActiveAttempt] = useState<TestAttempt | null>(null);
   const [teacherEmail, setTeacherEmail] = useState<string>(SUPER_ADMIN_EMAIL);
 
@@ -166,28 +168,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const testQuery = urlParams.get('test') || urlParams.get('testId') || urlParams.get('id');
         const hash = window.location.hash || '';
 
-        const rawTarget = testQuery || hash || window.location.href;
+        const rawTarget = testQuery || (hash.includes('test') ? hash : null);
         const cleanedId = cleanTestId(rawTarget);
 
         if (cleanedId) {
+          setIsFetchingActiveTest(true);
           setActiveTestIdState(cleanedId);
           setMode('student');
-          fetchTestCloud(cleanedId).then((fetched) => {
-            if (fetched) {
-              setTests((prev) => {
-                const existingIdx = prev.findIndex((t) => t.id === fetched.id);
-                if (existingIdx >= 0) {
-                  const updated = [...prev];
-                  updated[existingIdx] = fetched;
-                  return updated;
-                }
-                return [fetched, ...prev];
-              });
-            }
-          });
+          fetchTestCloud(cleanedId)
+            .then((fetched) => {
+              if (fetched) {
+                setTests((prev) => {
+                  const existingIdx = prev.findIndex((t) => t.id === fetched.id);
+                  if (existingIdx >= 0) {
+                    const updated = [...prev];
+                    updated[existingIdx] = fetched;
+                    return updated;
+                  }
+                  return [fetched, ...prev];
+                });
+              }
+            })
+            .finally(() => {
+              setIsFetchingActiveTest(false);
+            });
+        } else {
+          setIsFetchingActiveTest(false);
         }
       } catch (e) {
         console.error('Failed to parse URL params:', e);
+        setIsFetchingActiveTest(false);
       }
     };
 
@@ -221,20 +231,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Effect to auto-fetch missing active test from cloud if not found in local memory
   useEffect(() => {
-    if (!activeTestId) return;
+    if (!activeTestId) {
+      setIsFetchingActiveTest(false);
+      return;
+    }
     const cleaned = cleanTestId(activeTestId);
-    if (!cleaned) return;
+    if (!cleaned) {
+      setIsFetchingActiveTest(false);
+      return;
+    }
 
-    const exists = tests.some((t) => t.id === cleaned);
+    const exists = tests.some((t) => t.id === cleaned || cleanTestId(t.id) === cleaned);
     if (!exists) {
-      fetchTestCloud(cleaned).then((found) => {
-        if (found) {
-          setTests((prev) => {
-            if (prev.some((t) => t.id === found.id)) return prev;
-            return [found, ...prev];
-          });
-        }
-      });
+      setIsFetchingActiveTest(true);
+      fetchTestCloud(cleaned)
+        .then((found) => {
+          if (found) {
+            setTests((prev) => {
+              if (prev.some((t) => t.id === found.id)) return prev;
+              return [found, ...prev];
+            });
+          }
+        })
+        .finally(() => {
+          setIsFetchingActiveTest(false);
+        });
+    } else {
+      setIsFetchingActiveTest(false);
     }
   }, [activeTestId, tests]);
 
@@ -645,6 +668,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         activeTest,
         activeTestId,
+        isFetchingActiveTest,
         setActiveTestId,
         activeAttempt,
         setActiveAttempt,
