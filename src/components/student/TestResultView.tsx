@@ -25,16 +25,25 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
+import { LogOut } from 'lucide-react';
+
 interface TestResultViewProps {
   attempt: TestAttempt;
   onRetake: () => void;
+  onExit?: () => void;
 }
 
-export const TestResultView: React.FC<TestResultViewProps> = ({ attempt, onRetake }) => {
+export const TestResultView: React.FC<TestResultViewProps> = ({ attempt, onRetake, onExit }) => {
   const { tests } = useApp();
   const test = tests.find((t) => t.id === attempt.testId);
 
   const [solutionFilter, setSolutionFilter] = useState<'all' | 'correct' | 'incorrect' | 'unattempted'>('all');
+
+  const formatExternalUrl = (url?: string) => {
+    if (!url) return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `https://${url}`;
+  };
 
   // Trigger celebration confetti if student passed!
   useEffect(() => {
@@ -172,12 +181,23 @@ export const TestResultView: React.FC<TestResultViewProps> = ({ attempt, onRetak
           </button>
         </div>
 
-        <button
-          onClick={onRetake}
-          className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs"
-        >
-          <RotateCcw className="w-4 h-4" /> Retake Test Attempt
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onRetake}
+            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl transition border border-slate-300"
+          >
+            <RotateCcw className="w-4 h-4 text-slate-600" /> Retake Test
+          </button>
+
+          {onExit && (
+            <button
+              onClick={onExit}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition shadow-md shadow-emerald-600/20"
+            >
+              <LogOut className="w-4 h-4" /> Exit Examination (सत्र समाप्त)
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Promotional Course Ad Banner on Test Result / Submission Page */}
@@ -199,7 +219,7 @@ export const TestResultView: React.FC<TestResultViewProps> = ({ attempt, onRetak
 
               {test.resultAd.courseUrl && (
                 <a
-                  href={test.resultAd.courseUrl}
+                  href={formatExternalUrl(test.resultAd.courseUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition transform hover:-translate-y-0.5 active:translate-y-0"
@@ -213,7 +233,7 @@ export const TestResultView: React.FC<TestResultViewProps> = ({ attempt, onRetak
             {/* Banner Image Preview / Clickable Thumbnail */}
             {test.resultAd.imageUrl && (
               <a
-                href={test.resultAd.courseUrl || '#'}
+                href={formatExternalUrl(test.resultAd.courseUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative shrink-0 w-full md:w-64 h-36 rounded-2xl overflow-hidden border-2 border-amber-400/40 shadow-xl hover:border-amber-300 transition"
@@ -221,6 +241,10 @@ export const TestResultView: React.FC<TestResultViewProps> = ({ attempt, onRetak
                 <img
                   src={test.resultAd.imageUrl}
                   alt="Promotional Banner"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                 />
                 <div className="absolute inset-0 bg-slate-950/30 group-hover:bg-slate-950/10 transition flex items-center justify-center">

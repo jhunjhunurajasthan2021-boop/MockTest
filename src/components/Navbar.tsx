@@ -7,41 +7,91 @@ import {
   ShieldAlert,
   LogOut,
   Key,
+  ShieldCheck,
+  UserCheck,
 } from 'lucide-react';
 
 export const Navbar: React.FC<{
   onOpenCreateWizard: () => void;
 }> = () => {
-  const { mode, setMode, setActiveTestId, currentUser, logout } = useApp();
+  const { mode, setMode, setActiveTestId, currentUser, logout, activeTest } = useApp();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const coachingLogo = activeTest?.coachingLogoUrl || '';
+  const coachingName = activeTest?.coachingName || 'Coaching Institute';
+  const coachingTagline = activeTest?.coachingTagline || '';
 
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 text-slate-100 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Portal Title */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setActiveTestId(null);
-                setMode('admin');
-              }}
-              className="flex items-center gap-2.5 group text-left"
-            >
-              <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-105 transition duration-200">
-                <GraduationCap className="w-6 h-6 text-white" />
+        <div className="flex flex-wrap items-center justify-between h-16 gap-3">
+          {/* Left Side: Logo & Portal Title or Coaching Branding */}
+          <div className="flex items-center gap-3 shrink-0">
+            {mode === 'student' && activeTest ? (
+              <div className="flex items-center gap-3">
+                {coachingLogo ? (
+                  <img
+                    src={coachingLogo}
+                    alt={coachingName}
+                    className="w-9 h-9 object-contain rounded-xl bg-white p-1 shadow-xs border border-slate-700 shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-sm text-white shadow-xs shrink-0">
+                    {coachingName.charAt(0).toUpperCase() || 'C'}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h2 className="text-sm font-extrabold text-white leading-tight flex items-center gap-1.5 truncate">
+                    {coachingName}
+                    <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold border border-blue-400/30">
+                      <ShieldCheck className="w-3 h-3 text-blue-400" /> Verified Partner
+                    </span>
+                  </h2>
+                  {coachingTagline && (
+                    <p className="text-[10px] text-slate-300 font-medium truncate max-w-[180px] sm:max-w-xs leading-tight">
+                      {coachingTagline}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
-                  MockTest<span className="text-blue-400">Pro</span>
-                </span>
-                <span className="block text-[10px] font-medium text-slate-400 -mt-1 tracking-wider uppercase">
-                  Test Series Platform
-                </span>
-              </div>
-            </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setActiveTestId(null);
+                  setMode('admin');
+                }}
+                className="flex items-center gap-2.5 group text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-105 transition duration-200">
+                  <GraduationCap className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
+                    MockTest<span className="text-blue-400">Pro</span>
+                  </span>
+                  <span className="block text-[10px] font-medium text-slate-400 -mt-1 tracking-wider uppercase">
+                    Test Series Platform
+                  </span>
+                </div>
+              </button>
+            )}
           </div>
+
+          {/* Center: Active Mock Test Title Pill (When in Student Test Mode) */}
+          {mode === 'student' && activeTest && (
+            <div className="hidden md:flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700/60 shadow-xs max-w-xs lg:max-w-md">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/20 px-2 py-0.5 rounded border border-blue-400/30 shrink-0">
+                Mock Test
+              </span>
+              <h1 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                {activeTest.title}
+              </h1>
+            </div>
+          )}
 
           {/* Right Navigation Actions */}
           <div className="flex items-center gap-3">
@@ -142,10 +192,11 @@ export const Navbar: React.FC<{
                     setActiveTestId(null);
                     setMode('admin');
                   }}
-                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition"
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-2 rounded-xl text-xs font-extrabold border border-slate-700/80 shadow-xs hover:border-blue-500/50 transition cursor-pointer"
+                  title="Switch to Teacher / Admin Dashboard"
                 >
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                  Exit Student Examination View
+                  <UserCheck className="w-4 h-4 text-blue-400" />
+                  <span>Teacher / Admin Panel</span>
                 </button>
               </div>
             )}

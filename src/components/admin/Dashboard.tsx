@@ -7,6 +7,7 @@ import { CoachingBrandingHeader } from '../common/CoachingBrandingHeader';
 import { SuperAdminPanel } from './SuperAdminPanel';
 import { AdminLoginModal } from './AdminLoginModal';
 import { ADMIN_WHATSAPP_NUMBER, SUPER_ADMIN_EMAIL } from '../../services/storage';
+import { cleanTestId } from '../../utils/cleanTestId';
 import {
   FileText,
   Users,
@@ -150,7 +151,8 @@ export const Dashboard: React.FC<{
   ];
 
   const getShareUrl = (testId: string) => {
-    return `${window.location.origin}${window.location.pathname}?test=${testId}#test/${testId}`;
+    const cleaned = cleanTestId(testId) || testId;
+    return `${window.location.origin}${window.location.pathname}?test=${cleaned}#test/${cleaned}`;
   };
 
   const handleCopyLink = (testId: string) => {

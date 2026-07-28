@@ -91,6 +91,8 @@ export interface MockTest {
   isPublished: boolean;
   startAd?: PromoAdConfig;  // Banner ad on test registration / start page
   resultAd?: PromoAdConfig; // Banner ad on scorecard / test submission page
+  leftAd?: PromoAdConfig;   // Left Sidebar Ad Banner (PNG / JPG / JPEG)
+  rightAd?: PromoAdConfig;  // Right Sidebar Ad Banner (PNG / JPG / JPEG)
   coachingLogoUrl?: string; // Teacher custom coaching logo URL
   coachingName?: string;    // Teacher coaching institute name
   coachingTagline?: string; // Teacher coaching tagline / subtitle

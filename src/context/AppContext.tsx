@@ -193,7 +193,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setIsFetchingActiveTest(false);
             });
         } else {
+          setActiveTestIdState(null);
           setIsFetchingActiveTest(false);
+          if (window.location.hash && window.location.hash.includes('test')) {
+            try {
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch (e) {}
+          }
         }
       } catch (e) {
         console.error('Failed to parse URL params:', e);

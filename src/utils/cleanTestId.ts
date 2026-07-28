@@ -27,8 +27,19 @@ export function cleanTestId(input: string | null | undefined): string | null {
     str = str.slice(1);
   }
 
-  // If the result is a full URL or domain (e.g. starts with http:// or https://), it is not a test ID!
-  if (str.startsWith('http://') || str.startsWith('https://') || str.includes('://')) {
+  // If the result is a full URL or domain or invalid string, return null
+  if (
+    str.startsWith('http://') ||
+    str.startsWith('https://') ||
+    str.includes('://') ||
+    str.includes('.com') ||
+    str.includes('.app') ||
+    str.includes('.onrender') ||
+    str.includes('localhost') ||
+    str.toLowerCase() === 'undefined' ||
+    str.toLowerCase() === 'null' ||
+    str.toLowerCase() === '[object object]'
+  ) {
     return null;
   }
 

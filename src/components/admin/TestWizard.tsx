@@ -8,6 +8,7 @@ import { FormattedText } from '../common/FormattedText';
 import { downloadSampleDocxFile } from '../../utils/sampleDocxGenerator';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { QRCodeModal } from '../common/QRCodeModal';
+import { cleanTestId } from '../../utils/cleanTestId';
 import {
   FileText,
   Clock,
@@ -33,6 +34,8 @@ import {
   Image,
   Layers,
   HelpCircle,
+  Layout,
+  AlertCircle,
 } from 'lucide-react';
 
 interface TestWizardProps {
@@ -95,10 +98,55 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
       title: '🎓 Recommended Next Step: Advanced Exam Crash Course',
       description: 'Strengthen your weak topics with 1-on-1 doubt resolution & daily practice sets.',
       imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
-      courseUrl: 'https://jhunjhunucoaching.com/crash-course',
+      courseUrl: 'https://jhunjhunanucoaching.com/crash-course',
       buttonText: '👉 Explore Course Details',
     }
   );
+
+  const [leftAd, setLeftAd] = useState<PromoAdConfig>(
+    initialTest?.leftAd || {
+      enabled: false,
+      title: 'Left Sidebar Ad Banner',
+      imageUrl: '',
+      courseUrl: '',
+    }
+  );
+
+  const [rightAd, setRightAd] = useState<PromoAdConfig>(
+    initialTest?.rightAd || {
+      enabled: false,
+      title: 'Right Sidebar Ad Banner',
+      imageUrl: '',
+      courseUrl: '',
+    }
+  );
+
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    onSuccess: (dataUrl: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      alert('Invalid image format! Please upload a PNG, JPG, or JPEG file.');
+      return;
+    }
+
+    if (file.size > 2.5 * 1024 * 1024) {
+      alert('File size exceeds 2.5MB. Please upload a smaller image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        onSuccess(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Step 2 Questions State
   const [questions, setQuestions] = useState<Question[]>(initialTest?.questions || []);
@@ -323,6 +371,8 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
       settings,
       startAd: startAd.enabled ? startAd : { enabled: false },
       resultAd: resultAd.enabled ? resultAd : { enabled: false },
+      leftAd: leftAd.enabled ? leftAd : { enabled: false },
+      rightAd: rightAd.enabled ? rightAd : { enabled: false },
       coachingLogoUrl: initialTest?.coachingLogoUrl || currentUser?.coachingLogoUrl,
       coachingName: initialTest?.coachingName || currentUser?.instituteName,
       coachingTagline: initialTest?.coachingTagline || currentUser?.coachingTagline,
@@ -338,8 +388,9 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
     setStep(3);
   };
 
-  const shareUrl = savedTestId
-    ? `${window.location.origin}${window.location.pathname}?test=${savedTestId}#test/${savedTestId}`
+  const cleanSavedId = savedTestId ? cleanTestId(savedTestId) || savedTestId : '';
+  const shareUrl = cleanSavedId
+    ? `${window.location.origin}${window.location.pathname}?test=${cleanSavedId}#test/${cleanSavedId}`
     : '';
 
   const handleCopyLink = () => {
@@ -940,6 +991,164 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Left & Right Sidebar Ad Banner Settings (स्क्रीन के बाएँ और दाएँ विज्ञापन) */}
+                <div className="bg-white/95 p-4 rounded-xl border border-amber-200/80 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-amber-100 pb-2">
+                    <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                      <Layout className="w-4 h-4 text-amber-600" /> Left & Right Side Banner Ads (स्क्रीन के बाएँ और दाएँ साइड विज्ञापन)
+                    </span>
+                    <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-md">
+                      PNG / JPG / JPEG Supported
+                    </span>
+                  </div>
+
+                  {/* Image Format & Size Guidance Box */}
+                  <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 text-xs space-y-1.5 text-slate-800">
+                    <p className="font-extrabold text-blue-900 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                      📐 Ad Image Specifications & Guidance (इमेज गाइडलाइन):
+                    </p>
+                    <ul className="text-[11px] text-slate-700 space-y-1 pl-5 list-disc font-medium">
+                      <li><strong>Supported File Formats:</strong> PNG, JPG, JPEG (पारदर्शी या सॉलिड बैकग्राउंड).</li>
+                      <li><strong>Recommended Image Dimensions:</strong> <strong>160 × 600 px</strong> (Skyscraper) or <strong>300 × 600 px</strong> (Half Page Ad) / <strong>250 × 500 px</strong>.</li>
+                      <li><strong>Recommended Aspect Ratio:</strong> 1:2 or 1:3 vertical banner ratio.</li>
+                      <li><strong>Maximum File Size:</strong> Up to 2.5 MB per image for instant student page loading.</li>
+                    </ul>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    {/* Left Sidebar Ad */}
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                      <label className="flex items-center justify-between text-xs font-extrabold text-slate-900 cursor-pointer">
+                        <span className="flex items-center gap-1.5">
+                          <Image className="w-4 h-4 text-blue-600" /> Enable Left Side Ad (बायाँ विज्ञापन)
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={leftAd.enabled}
+                          onChange={(e) => setLeftAd({ ...leftAd, enabled: e.target.checked })}
+                          className="w-4 h-4 text-blue-600 rounded-md"
+                        />
+                      </label>
+
+                      {leftAd.enabled && (
+                        <div className="space-y-2.5 pt-2 border-t border-slate-200 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Ad Title / Tooltip</label>
+                            <input
+                              type="text"
+                              value={leftAd.title || ''}
+                              onChange={(e) => setLeftAd({ ...leftAd, title: e.target.value })}
+                              placeholder="e.g. Join Bankers Batch 2026"
+                              className="w-full text-xs p-2 border border-slate-300 rounded-lg"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Upload PNG/JPG Image or Enter URL *</label>
+                            <div className="space-y-2">
+                              <input
+                                type="file"
+                                accept="image/png, image/jpeg, image/jpg"
+                                onChange={(e) => handleFileUpload(e, (url) => setLeftAd({ ...leftAd, imageUrl: url }))}
+                                className="w-full text-[11px] text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                              />
+                              <input
+                                type="url"
+                                value={leftAd.imageUrl || ''}
+                                onChange={(e) => setLeftAd({ ...leftAd, imageUrl: e.target.value })}
+                                placeholder="Or paste image URL (https://...)"
+                                className="w-full text-xs p-2 border border-slate-300 rounded-lg font-mono text-[11px]"
+                              />
+                            </div>
+                            {leftAd.imageUrl && (
+                              <div className="mt-2 relative w-24 h-32 rounded-lg overflow-hidden border border-slate-300">
+                                <img src={leftAd.imageUrl} alt="Left Ad Preview" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Course Redirect Target Link</label>
+                            <input
+                              type="url"
+                              value={leftAd.courseUrl || ''}
+                              onChange={(e) => setLeftAd({ ...leftAd, courseUrl: e.target.value })}
+                              placeholder="https://yourcoaching.com/course"
+                              className="w-full text-xs p-2 border border-slate-300 rounded-lg font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Sidebar Ad */}
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                      <label className="flex items-center justify-between text-xs font-extrabold text-slate-900 cursor-pointer">
+                        <span className="flex items-center gap-1.5">
+                          <Image className="w-4 h-4 text-indigo-600" /> Enable Right Side Ad (दायाँ विज्ञापन)
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={rightAd.enabled}
+                          onChange={(e) => setRightAd({ ...rightAd, enabled: e.target.checked })}
+                          className="w-4 h-4 text-indigo-600 rounded-md"
+                        />
+                      </label>
+
+                      {rightAd.enabled && (
+                        <div className="space-y-2.5 pt-2 border-t border-slate-200 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Ad Title / Tooltip</label>
+                            <input
+                              type="text"
+                              value={rightAd.title || ''}
+                              onChange={(e) => setRightAd({ ...rightAd, title: e.target.value })}
+                              placeholder="e.g. Special Test Series Offer"
+                              className="w-full text-xs p-2 border border-slate-300 rounded-lg"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Upload PNG/JPG Image or Enter URL *</label>
+                            <div className="space-y-2">
+                              <input
+                                type="file"
+                                accept="image/png, image/jpeg, image/jpg"
+                                onChange={(e) => handleFileUpload(e, (url) => setRightAd({ ...rightAd, imageUrl: url }))}
+                                className="w-full text-[11px] text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                              />
+                              <input
+                                type="url"
+                                value={rightAd.imageUrl || ''}
+                                onChange={(e) => setRightAd({ ...rightAd, imageUrl: e.target.value })}
+                                placeholder="Or paste image URL (https://...)"
+                                className="w-full text-xs p-2 border border-slate-300 rounded-lg font-mono text-[11px]"
+                              />
+                            </div>
+                            {rightAd.imageUrl && (
+                              <div className="mt-2 relative w-24 h-32 rounded-lg overflow-hidden border border-slate-300">
+                                <img src={rightAd.imageUrl} alt="Right Ad Preview" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Course Redirect Target Link</label>
+                            <input
+                              type="url"
+                              value={rightAd.courseUrl || ''}
+                              onChange={(e) => setRightAd({ ...rightAd, courseUrl: e.target.value })}
+                              placeholder="https://yourcoaching.com/test-series"
+                              className="w-full text-xs p-2 border border-slate-300 rounded-lg font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </form>

@@ -38,6 +38,18 @@ export const SAMPLE_MOCK_TESTS: MockTest[] = [
       courseUrl: 'https://jhunjhunucoaching.com/courses/physics-crash-course',
       buttonText: 'Explore Course Details',
     },
+    leftAd: {
+      enabled: true,
+      title: '📚 Bankers & Railway Live Batch 2026',
+      imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
+      courseUrl: 'https://jhunjhunucoaching.com/courses/bankers-batch',
+    },
+    rightAd: {
+      enabled: true,
+      title: '⚡ SSC CGL & CHSL Target Test Series',
+      imageUrl: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=600&q=80',
+      courseUrl: 'https://jhunjhunucoaching.com/courses/ssc-cgl-test-series',
+    },
     questions: [
       {
         id: 'q-1',
