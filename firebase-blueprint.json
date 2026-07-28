@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "MockTest": {
+      "title": "MockTest",
+      "description": "Represents an online mock test created by a teacher or super admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "subject": { "type": "string" },
+        "testType": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "subject", "questions"]
+    },
+    "TestAttempt": {
+      "title": "TestAttempt",
+      "description": "Represents a student's attempt at a mock test",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "testId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "score": { "type": "number" }
+      },
+      "required": ["id", "testId", "studentName"]
+    }
+  },
+  "firestore": {
+    "/tests/{testId}": {
+      "schema": "MockTest",
+      "description": "Collection of all published mock tests"
+    },
+    "/attempts/{attemptId}": {
+      "schema": "TestAttempt",
+      "description": "Collection of test attempts by students"
+    }
+  }
+}

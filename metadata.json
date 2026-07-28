@@ -1,0 +1,6 @@
+{
+  "name": "Mock Test Series Platform",
+  "description": "Comprehensive online mock test series platform with question import, timed test attempts, instant results, and detailed performance analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
