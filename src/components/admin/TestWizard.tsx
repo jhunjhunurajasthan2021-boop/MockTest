@@ -339,7 +339,7 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
   };
 
   const shareUrl = savedTestId
-    ? `${window.location.origin}${window.location.pathname}#test/${savedTestId}`
+    ? `${window.location.origin}${window.location.pathname}?test=${savedTestId}#test/${savedTestId}`
     : '';
 
   const handleCopyLink = () => {

@@ -150,7 +150,7 @@ export const Dashboard: React.FC<{
   ];
 
   const getShareUrl = (testId: string) => {
-    return `${window.location.origin}${window.location.pathname}#test/${testId}`;
+    return `${window.location.origin}${window.location.pathname}?test=${testId}#test/${testId}`;
   };
 
   const handleCopyLink = (testId: string) => {
@@ -529,17 +529,23 @@ export const Dashboard: React.FC<{
                             <QrCode className="w-4 h-4" />
                           </button>
 
-                          {/* Take Test View */}
-                          <button
-                            onClick={() => {
-                              setActiveTestId(test.id);
-                              setMode('student');
+                          {/* Take Test View / Open Link */}
+                          <a
+                            href={getShareUrl(test.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                              if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                                e.preventDefault();
+                                setActiveTestId(test.id);
+                                setMode('student');
+                              }
                             }}
-                            title="Try Test as Student"
-                            className="p-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition shadow-2xs"
+                            title="Try Test as Student (Click) or Open in New Tab"
+                            className="p-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition shadow-2xs inline-flex items-center justify-center"
                           >
                             <ExternalLink className="w-4 h-4" />
-                          </button>
+                          </a>
 
                           {/* Clone Test */}
                           <button

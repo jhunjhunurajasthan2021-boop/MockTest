@@ -104,9 +104,9 @@ const DEFAULT_SUPER_ADMIN: AuthUser = {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<'admin' | 'student'>('admin');
-  const [tests, setTests] = useState<MockTest[]>([]);
-  const [attempts, setAttempts] = useState<TestAttempt[]>([]);
-  const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
+  const [tests, setTests] = useState<MockTest[]>(() => getStoredTests());
+  const [attempts, setAttempts] = useState<TestAttempt[]>(() => getStoredAttempts());
+  const [teachers, setTeachers] = useState<TeacherAccount[]>(() => getStoredTeachers());
   const [platformConfig, setPlatformConfigState] = useState<LandingPlatformConfig>(DEFAULT_PLATFORM_CONFIG);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [activeTestId, setActiveTestIdState] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const testQuery = urlParams.get('test') || urlParams.get('testId') || urlParams.get('id');
         const hash = window.location.hash || '';
 
-        const rawTarget = testQuery || hash;
+        const rawTarget = testQuery || hash || window.location.href;
         const cleanedId = cleanTestId(rawTarget);
 
         if (cleanedId) {
@@ -175,7 +175,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           fetchTestCloud(cleanedId).then((fetched) => {
             if (fetched) {
               setTests((prev) => {
-                if (prev.some((t) => t.id === fetched.id)) return prev;
+                const existingIdx = prev.findIndex((t) => t.id === fetched.id);
+                if (existingIdx >= 0) {
+                  const updated = [...prev];
+                  updated[existingIdx] = fetched;
+                  return updated;
+                }
                 return [fetched, ...prev];
               });
             }
@@ -548,7 +553,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {}
     } else {
       try {
-        window.history.pushState(null, '', window.location.pathname);
+        if (window.location.hash || window.location.search) {
+          window.history.pushState(null, '', window.location.pathname);
+        }
       } catch (e) {}
     }
   };
