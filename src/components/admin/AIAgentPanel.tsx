@@ -375,8 +375,8 @@ export const AIAgentPanel: React.FC = () => {
         return {
           title: 'Extracted Verbatim Mock Test',
           subject: 'General',
-          questions: parsedTextResult.questions.map((q) => ({
-            question: q.question,
+          questions: parsedTextResult.questions.map((q: any) => ({
+            question: q.question || q.text || '',
             options: Array.isArray(q.options)
               ? q.options.map((o: any) => (typeof o === 'string' ? o : o.text))
               : ['A', 'B', 'C', 'D'],

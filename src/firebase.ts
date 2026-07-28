@@ -5,7 +5,23 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+
+let firestoreInstance: any = null;
+try {
+  const dbId = (firebaseConfig as any)?.firestoreDatabaseId;
+  if (dbId && dbId !== '(default)') {
+    firestoreInstance = getFirestore(app, dbId);
+  } else {
+    firestoreInstance = getFirestore(app);
+  }
+} catch (err) {
+  try {
+    firestoreInstance = getFirestore(app);
+  } catch (e) {
+    console.warn('Failed to initialize Firestore:', e);
+  }
+}
+export const db = firestoreInstance;
 
 const provider = new GoogleAuthProvider();
 // Request Google Drive scopes

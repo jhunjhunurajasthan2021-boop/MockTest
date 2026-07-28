@@ -195,10 +195,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     window.addEventListener('hashchange', syncTestFromUrl);
     window.addEventListener('popstate', syncTestFromUrl);
+    window.addEventListener('storage', syncTestFromUrl);
 
     return () => {
       window.removeEventListener('hashchange', syncTestFromUrl);
       window.removeEventListener('popstate', syncTestFromUrl);
+      window.removeEventListener('storage', syncTestFromUrl);
     };
   }, []);
 
@@ -563,9 +565,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const activeTest = (() => {
     const target = cleanTestId(activeTestId);
     if (!target) return null;
+
+    const matchesTarget = (t: MockTest) => {
+      if (!t || !t.id) return false;
+      const tClean = cleanTestId(t.id);
+      const rawTarget = activeTestId || '';
+      return (
+        t.id === target ||
+        t.id === rawTarget ||
+        (Boolean(tClean) && tClean === target) ||
+        t.id.toLowerCase() === target.toLowerCase() ||
+        t.id.replace(/[^a-zA-Z0-9]/g, '') === target.replace(/[^a-zA-Z0-9]/g, '') ||
+        (target.length > 5 && t.id.includes(target)) ||
+        (t.id.length > 5 && target.includes(t.id))
+      );
+    };
+
     return (
-      tests.find((t) => t.id === target) ||
-      getStoredTests().find((t) => t.id === target) ||
+      tests.find(matchesTarget) ||
+      getStoredTests().find(matchesTarget) ||
       null
     );
   })();

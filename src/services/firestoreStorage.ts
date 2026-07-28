@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, limi
 import { db } from '../firebase';
 import { MockTest, TestAttempt, TeacherAccount } from '../types';
 import { saveTests, getStoredTests, saveAttempt as saveLocalAttempt, getStoredAttempts } from './storage';
+import { cleanTestId } from '../utils/cleanTestId';
 
 const TESTS_COLLECTION = 'tests';
 const ATTEMPTS_COLLECTION = 'attempts';
@@ -37,24 +38,70 @@ export async function saveTestCloud(test: MockTest): Promise<void> {
 export async function fetchTestCloud(testId: string): Promise<MockTest | null> {
   if (!testId) return null;
 
-  // First check local storage / memory
+  const target = cleanTestId(testId) || testId;
+
+  // First check local storage / memory with flexible matching
   const localTests = getStoredTests();
-  const localMatch = localTests.find((t) => t.id === testId);
+  const localMatch = localTests.find((t) => {
+    if (!t || !t.id) return false;
+    const tClean = cleanTestId(t.id);
+    return (
+      t.id === target ||
+      t.id === testId ||
+      (tClean && tClean === target) ||
+      t.id.toLowerCase() === target.toLowerCase() ||
+      t.id.replace(/[^a-zA-Z0-9]/g, '') === target.replace(/[^a-zA-Z0-9]/g, '')
+    );
+  });
   if (localMatch) return localMatch;
 
   // Query Firestore Cloud DB
   try {
     if (db) {
-      const docRef = doc(db, TESTS_COLLECTION, testId);
-      const docSnap = await getDoc(docRef);
+      // 1. Try direct doc ID
+      let docRef = doc(db, TESTS_COLLECTION, target);
+      let docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists() && testId !== target) {
+        docRef = doc(db, TESTS_COLLECTION, testId);
+        docSnap = await getDoc(docRef);
+      }
+
       if (docSnap.exists()) {
         const cloudTest = docSnap.data() as MockTest;
-        // Save to local storage as cache
         const currentLocal = getStoredTests();
         if (!currentLocal.some((t) => t.id === cloudTest.id)) {
           saveTests([cloudTest, ...currentLocal]);
         }
         return cloudTest;
+      }
+
+      // 2. Fallback: Query all tests collection in case doc ID format differs
+      const collRef = collection(db, TESTS_COLLECTION);
+      const querySnap = await getDocs(collRef);
+      let found: MockTest | null = null;
+      querySnap.forEach((dSnap) => {
+        if (dSnap.exists()) {
+          const tData = dSnap.data() as MockTest;
+          if (
+            tData &&
+            tData.id &&
+            (tData.id === target ||
+              tData.id === testId ||
+              cleanTestId(tData.id) === target ||
+              tData.id.replace(/[^a-zA-Z0-9]/g, '') === target.replace(/[^a-zA-Z0-9]/g, ''))
+          ) {
+            found = tData;
+          }
+        }
+      });
+
+      if (found) {
+        const currentLocal = getStoredTests();
+        if (!currentLocal.some((t: MockTest) => t.id === (found as MockTest).id)) {
+          saveTests([found, ...currentLocal]);
+        }
+        return found;
       }
     }
   } catch (err) {
