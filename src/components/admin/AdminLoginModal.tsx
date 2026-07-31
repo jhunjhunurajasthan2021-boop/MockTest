@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { ADMIN_WHATSAPP_NUMBER } from '../../services/storage';
 import {
@@ -60,9 +61,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
   );
   const whatsappUrl = `https://wa.me/91${ADMIN_WHATSAPP_NUMBER}?text=${whatsappMessage}`;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden text-slate-900 animate-in zoom-in-95">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl flex flex-col max-h-full sm:max-h-[90vh] overflow-hidden text-slate-900 animate-in zoom-in-95">
         {/* Header - Fixed shrink-0 */}
         <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
@@ -148,28 +149,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
             </button>
           </form>
 
-          {/* Claim Free Trial Button if callback exists */}
-          {onOpenFreeTrial && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl p-3.5 flex items-center justify-between gap-2">
-              <div>
-                <div className="text-xs font-black text-amber-950 flex items-center gap-1">
-                  <Gift className="w-3.5 h-3.5 text-amber-600" /> New Teacher?
-                </div>
-                <p className="text-[11px] font-semibold text-amber-900/80 mt-0.5">
-                  Get 3 Days Free Trial (10 Mock Tests)
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onOpenFreeTrial}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[11px] rounded-xl shadow-xs transition flex items-center gap-1 shrink-0 cursor-pointer"
-              >
-                <span>Free Trial</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-
           {/* WhatsApp Contact Box */}
           <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50/50 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
             <div className="flex items-start gap-2.5">
@@ -198,6 +177,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

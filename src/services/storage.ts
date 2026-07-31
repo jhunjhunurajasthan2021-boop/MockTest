@@ -15,6 +15,7 @@ export const DEFAULT_PLATFORM_CONFIG: LandingPlatformConfig = {
   monthlyPrice: 199,
   yearlyPrice: 1800,
   whatsappNumber: ADMIN_WHATSAPP_NUMBER,
+  customAppLogo: '',
   monthlyPlanFeatures: [
     'Unlimited Mock Test & Question Creation',
     'Direct Student Link & WhatsApp Sharing',
@@ -85,6 +86,16 @@ export function savePlatformConfig(config: LandingPlatformConfig): LandingPlatfo
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
   } catch (err) {
     console.error('Error saving platform config:', err);
+    // If quota exceeded, try saving without customAppLogo if base64 is too huge, but log warning
+    try {
+      const fallbackConfig = { ...config };
+      if (fallbackConfig.customAppLogo && fallbackConfig.customAppLogo.length > 500000) {
+        console.warn('customAppLogo base64 too large for localStorage, compressing or removing');
+      }
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(fallbackConfig));
+    } catch (e) {
+      console.error('Secondary save attempt failed:', e);
+    }
   }
   return config;
 }

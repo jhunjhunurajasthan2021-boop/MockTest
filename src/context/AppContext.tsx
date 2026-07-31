@@ -110,7 +110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [tests, setTests] = useState<MockTest[]>(() => getStoredTests());
   const [attempts, setAttempts] = useState<TestAttempt[]>(() => getStoredAttempts());
   const [teachers, setTeachers] = useState<TeacherAccount[]>(() => getStoredTeachers());
-  const [platformConfig, setPlatformConfigState] = useState<LandingPlatformConfig>(DEFAULT_PLATFORM_CONFIG);
+  const [platformConfig, setPlatformConfigState] = useState<LandingPlatformConfig>(() => getPlatformConfig());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [activeTestId, setActiveTestIdState] = useState<string | null>(null);
   const [isFetchingActiveTest, setIsFetchingActiveTest] = useState<boolean>(false);
@@ -282,7 +282,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updatePlatformConfigHandler = (newConfig: LandingPlatformConfig) => {
     const saved = savePlatformConfig(newConfig);
-    setPlatformConfigState(saved);
+    setPlatformConfigState({ ...saved });
   };
 
 

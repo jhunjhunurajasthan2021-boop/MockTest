@@ -1,7 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TeacherAccount } from '../../types';
 import { ADMIN_WHATSAPP_NUMBER, SUPER_ADMIN_EMAIL } from '../../services/storage';
+
+const compressAndResizeLogo = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        const maxWidth = 400;
+        const maxHeight = 160;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const pngData = canvas.toDataURL('image/png');
+        resolve(pngData);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
 import {
   ShieldCheck,
   UserPlus,
@@ -55,6 +96,10 @@ export const SuperAdminPanel: React.FC = () => {
   // Platform Config Local Form State
   const [localConfig, setLocalConfig] = useState(platformConfig);
   const [configSuccessMsg, setConfigSuccessMsg] = useState('');
+
+  useEffect(() => {
+    setLocalConfig(platformConfig);
+  }, [platformConfig]);
 
   // Testimonial Form State
   const [newTestim, setNewTestim] = useState({
@@ -532,8 +577,55 @@ export const SuperAdminPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Headline & Subtitle Texts */}
+          {/* Headline, Subtitle, & Logo Texts */}
           <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-black text-slate-800 mb-1">
+                Custom App Logo (Upload Image)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    try {
+                      const resizedBase64 = await compressAndResizeLogo(file);
+                      const updated = { ...localConfig, customAppLogo: resizedBase64 };
+                      setLocalConfig(updated);
+                      updatePlatformConfig(updated);
+                    } catch (err) {
+                      console.error('Error processing logo image:', err);
+                      alert('Could not process image file. Please try another image.');
+                    }
+                  }
+                }}
+                className="block w-full text-xs text-slate-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-xl file:border-0
+                  file:text-xs file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100 cursor-pointer border border-slate-200 p-1.5 rounded-2xl"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">Upload any PNG/JPG image. It will be automatically optimized and replace the top header logo.</p>
+              {localConfig.customAppLogo && (
+                <div className="mt-3 flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200 w-max">
+                  <img src={localConfig.customAppLogo} alt="Preview" className="h-12 object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = { ...localConfig, customAppLogo: '' };
+                      setLocalConfig(updated);
+                      updatePlatformConfig(updated);
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-700 font-bold bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100"
+                  >
+                    Remove Logo
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-xs font-black text-slate-800 mb-1">
                 Main Front Headline (मुख्य शीर्षक) *

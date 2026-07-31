@@ -200,5 +200,6 @@ export interface LandingPlatformConfig {
   yearlyPlanFeatures: string[];
   whatsappNumber: string;
   testimonials: TeacherTestimonial[];
+  customAppLogo?: string;
 }
 
