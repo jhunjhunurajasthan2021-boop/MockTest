@@ -9,14 +9,17 @@ import {
   X,
   CheckCircle2,
   GraduationCap,
+  Gift,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenFreeTrial?: () => void;
 }
 
-export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose }) => {
+export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose, onOpenFreeTrial }) => {
   const { loginAsTeacher } = useApp();
 
   const [email, setEmail] = useState('');
@@ -58,16 +61,16 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
   const whatsappUrl = `https://wa.me/91${ADMIN_WHATSAPP_NUMBER}?text=${whatsappMessage}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden flex flex-col transform transition-all">
-        {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden text-slate-900 animate-in zoom-in-95">
+        {/* Header - Fixed shrink-0 */}
+        <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0">
-              <GraduationCap className="w-6 h-6" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 text-white shrink-0">
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h3 className="font-black text-lg tracking-tight text-white flex items-center gap-1.5">
+              <h3 className="font-black text-base sm:text-lg tracking-tight text-white flex items-center gap-1.5">
                 Teacher Panel Login
               </h3>
               <p className="text-xs text-slate-300 font-medium">
@@ -84,8 +87,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 space-y-4">
+        {/* Content Body - Scrollable flex-1 */}
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {/* Status Alert Messages */}
           {errorMsg && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs flex items-start gap-2.5 animate-in fade-in">
@@ -144,6 +147,28 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
               <UserCheck className="w-4 h-4" /> Login to Teacher Panel
             </button>
           </form>
+
+          {/* Claim Free Trial Button if callback exists */}
+          {onOpenFreeTrial && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-black text-amber-950 flex items-center gap-1">
+                  <Gift className="w-3.5 h-3.5 text-amber-600" /> New Teacher?
+                </div>
+                <p className="text-[11px] font-semibold text-amber-900/80 mt-0.5">
+                  Get 3 Days Free Trial (10 Mock Tests)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenFreeTrial}
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[11px] rounded-xl shadow-xs transition flex items-center gap-1 shrink-0 cursor-pointer"
+              >
+                <span>Free Trial</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          )}
 
           {/* WhatsApp Contact Box */}
           <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50/50 border border-emerald-200 rounded-2xl p-4 space-y-2.5">

@@ -9,6 +9,18 @@ import { AdminLoginModal } from './AdminLoginModal';
 import { ADMIN_WHATSAPP_NUMBER, SUPER_ADMIN_EMAIL } from '../../services/storage';
 import { cleanTestId } from '../../utils/cleanTestId';
 import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import {
   FileText,
   Users,
   Award,
@@ -34,6 +46,7 @@ import {
   LogOut,
   Image as ImageIcon,
   Building2,
+  Upload,
 } from 'lucide-react';
 
 export const Dashboard: React.FC<{
@@ -73,6 +86,43 @@ export const Dashboard: React.FC<{
       setActiveTab('tests');
     }
   }, [currentUser]);
+
+  const handleCreateTestClick = () => {
+    if (
+      !currentUser?.isSuperAdmin &&
+      (currentUser?.notes?.includes('Free Trial') || (currentUser?.accessDaysRemaining !== undefined && currentUser.accessDaysRemaining <= 3)) &&
+      displayTests.length >= 10
+    ) {
+      alert(
+        `आपकी 3-दिन फ्री ट्रायल सीमा (10 मॉक टेस्ट) पूर्ण हो चुकी है!\n\nअनलिमिटेड मॉक टेस्ट बनाने के लिए एडमिन से व्हाट्सएप (${ADMIN_WHATSAPP_NUMBER}) पर संपर्क करके प्लान अपग्रेड करें।`
+      );
+      window.open(
+        `https://wa.me/91${ADMIN_WHATSAPP_NUMBER}?text=${encodeURIComponent(
+          `Hello Admin, I have reached my 10 Mock Tests limit on 3-Day Free Trial (${currentUser?.email}). Please upgrade my account to Unlimited Plan.`
+        )}`,
+        '_blank'
+      );
+      return;
+    }
+    onOpenCreateWizard();
+  };
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('कृपया केवल इमेज (PNG, JPG, SVG, WEBP) फाइल चुनें!');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setBrandingForm((prev) => ({ ...prev, coachingLogoUrl: dataUrl }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Compute isolated teacher tests
   const displayTests = tests.filter((t) => {
@@ -143,7 +193,7 @@ export const Dashboard: React.FC<{
   }
 
   // Chart 2: Pass vs Fail Ratio
-  const passedCount = attempts.filter((a) => a.passed).length;
+  const passedCount = displayAttempts.filter((a) => a.passed).length;
   const failedCount = totalAttempts - passedCount;
   const passFailData = [
     { name: 'Passed', value: totalAttempts > 0 ? passedCount : 18, color: '#10B981' },
@@ -222,13 +272,49 @@ export const Dashboard: React.FC<{
             </div>
 
             <button
-              onClick={onOpenCreateWizard}
-              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold px-5 py-3 rounded-xl shadow-xs transition duration-200 shrink-0 text-xs sm:text-sm"
+              onClick={handleCreateTestClick}
+              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold px-5 py-3 rounded-xl shadow-xs transition duration-200 shrink-0 text-xs sm:text-sm cursor-pointer"
             >
               <Plus className="w-5 h-5" />
               Create New Mock Test
             </button>
           </div>
+
+          {/* Teacher Free Trial Active Banner */}
+          {!currentUser?.isSuperAdmin && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-slate-900 shadow-xs">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2.5 bg-amber-400 text-slate-950 rounded-xl shrink-0 font-black text-base shadow-xs">
+                  🎁
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                      3-Day Free Trial Account Active
+                    </h4>
+                    <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full">
+                      ⏱️ {currentUser?.accessDaysRemaining || 0} Days Left
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 font-medium mt-0.5">
+                    Trial Limit: <strong className="text-slate-900 font-bold">{displayTests.length} / 10 Mock Tests Created</strong>
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href={`https://wa.me/91${ADMIN_WHATSAPP_NUMBER}?text=${encodeURIComponent(
+                  `Hello Admin, I am using the 3-Day Free Trial (${currentUser?.email}). I want to upgrade to Unlimited Monthly/Yearly Teacher Plan.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4 text-white" />
+                Upgrade on WhatsApp ({ADMIN_WHATSAPP_NUMBER})
+              </a>
+            </div>
+          )}
 
           {/* Super Admin Teacher Filter or Teacher Account Status Banner */}
           {currentUser?.isSuperAdmin ? (
@@ -270,47 +356,7 @@ export const Dashboard: React.FC<{
             </div>
           ) : null}
 
-          {/* Teacher Coaching Branding Configurator Section */}
-          {currentUser && !currentUser.isSuperAdmin && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-md p-6 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl border border-blue-200">
-                    <Building2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                      Coaching Branding & Logo (कोचिंग ब्रांडिंग एवं लोगो सेटिंग्स)
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Configure your coaching logo, institute name, and tagline. Visible to students on test links & scorecards.
-                    </p>
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowBrandingModal(true)}
-                  className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2 shrink-0"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-300" /> Change Coaching Logo & Branding
-                </button>
-              </div>
-
-              {/* Live Student Header Preview */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">
-                  👁️ Student Link Banner Preview (विद्यार्थी टेस्ट पेज प्रिव्यू):
-                </span>
-                <CoachingBrandingHeader
-                  customName={currentUser.instituteName}
-                  customLogoUrl={currentUser.coachingLogoUrl}
-                  customTagline={currentUser.coachingTagline}
-                  variant="hero"
-                />
-              </div>
-            </div>
-          )}
 
           {/* Expiring Soon Banner */}
           {expiringSoonTests.length > 0 && (
@@ -379,7 +425,7 @@ export const Dashboard: React.FC<{
       {/* Analytics Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">Subject Performance Analysis</h3>
               <p className="text-xs text-slate-500">Average student score (%) by subject</p>
@@ -387,18 +433,54 @@ export const Dashboard: React.FC<{
             <BarChart2 className="w-5 h-5 text-slate-400" />
           </div>
 
-          <div className="h-64 w-full flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <p className="text-sm text-slate-500 font-medium">Chart Temporarily Disabled</p>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <BarChart data={subjectChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis dataKey="subject" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
+                  formatter={(val: any) => [`${val}%`, 'Avg Score']}
+                />
+                <Bar dataKey="avgScore" fill="#3B82F6" radius={[6, 6, 0, 0]} barSize={36} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900 mb-1">Pass vs Needs Review</h3>
-            <p className="text-xs text-slate-500 mb-4">Percentage of passed vs failed test attempts</p>
+            <p className="text-xs text-slate-500 mb-2">Percentage of passed vs failed test attempts</p>
 
-            <div className="h-48 w-full relative flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              <p className="text-sm text-slate-500 font-medium">Chart Temporarily Disabled</p>
+            <div className="h-48 w-full relative">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <PieChart>
+                  <Pie
+                    data={passFailData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {passFailData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-xl font-black text-slate-900">
+                  {displayAttempts.length > 0 ? displayAttempts.length : 24}
+                </span>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Attempts</span>
+              </div>
             </div>
           </div>
 
@@ -635,152 +717,7 @@ export const Dashboard: React.FC<{
         </div>
       )}
 
-      {/* Edit Coaching Branding Modal */}
-      {showBrandingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden flex flex-col">
-            <div className="p-5 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base">Edit Coaching Branding & Logo</h3>
-                  <p className="text-[11px] text-slate-300">कोचिंग संस्थान का नाम, लोगो एवं टैगलाइन अपडेट करें</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowBrandingModal(false)}
-                className="p-2 text-slate-400 hover:text-white rounded-full transition"
-              >
-                ✕
-              </button>
-            </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                updateTeacherBranding({
-                  instituteName: brandingForm.instituteName,
-                  coachingLogoUrl: brandingForm.coachingLogoUrl,
-                  coachingTagline: brandingForm.coachingTagline,
-                });
-                setShowBrandingModal(false);
-              }}
-              className="p-6 space-y-4"
-            >
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Coaching Institute Name (कोचिंग का नाम) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Jhunjhunu Career Academy"
-                  value={brandingForm.instituteName}
-                  onChange={(e) => setBrandingForm({ ...brandingForm, instituteName: e.target.value })}
-                  className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-extrabold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Coaching Logo Image URL (लोगो इमेज लिंक)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://example.com/logo.png"
-                  value={brandingForm.coachingLogoUrl}
-                  onChange={(e) => setBrandingForm({ ...brandingForm, coachingLogoUrl: e.target.value })}
-                  className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono"
-                />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Paste your hosted logo image link or select a preset template logo below:
-                </p>
-
-                {/* Preset Logo Selection */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {[
-                    {
-                      name: 'Science & Tech',
-                      url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=150&q=80',
-                    },
-                    {
-                      name: 'Academy Badge',
-                      url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=150&q=80',
-                    },
-                    {
-                      name: 'Star Competitions',
-                      url: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=150&q=80',
-                    },
-                  ].map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => setBrandingForm({ ...brandingForm, coachingLogoUrl: preset.url })}
-                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg text-[10px] font-bold text-slate-700 flex items-center gap-1.5 transition"
-                    >
-                      <img src={preset.url} alt={preset.name} className="w-4 h-4 object-cover rounded" />
-                      {preset.name}
-                    </button>
-                  ))}
-                  {brandingForm.coachingLogoUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setBrandingForm({ ...brandingForm, coachingLogoUrl: '' })}
-                      className="px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-[10px] font-bold"
-                    >
-                      Remove Logo
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Tagline / Subtitle (टैगलाइन / सब-टाइटल्स)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Official Online Mock Test Series • Toppers Choice"
-                  value={brandingForm.coachingTagline}
-                  onChange={(e) => setBrandingForm({ ...brandingForm, coachingTagline: e.target.value })}
-                  className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
-                />
-              </div>
-
-              {/* Preview Box */}
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Live Header Preview:</span>
-                <CoachingBrandingHeader
-                  customName={brandingForm.instituteName}
-                  customLogoUrl={brandingForm.coachingLogoUrl}
-                  customTagline={brandingForm.coachingTagline}
-                  variant="topbar"
-                  className="bg-slate-900 p-3 rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowBrandingModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md transition"
-                >
-                  Save Coaching Branding
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
         </>
       )}
       {/* Admin Login Modal */}

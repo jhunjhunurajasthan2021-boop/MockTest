@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AdminLoginModal } from '../admin/AdminLoginModal';
+import { FreeTrialModal } from '../admin/FreeTrialModal';
 import {
   Zap,
   CheckCircle2,
@@ -17,13 +18,15 @@ import {
   Clock,
   BarChart3,
   Smartphone,
+  Gift,
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const { platformConfig } = useApp();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showFreeTrialModal, setShowFreeTrialModal] = useState(false);
 
-  const whatsappNumber = platformConfig.whatsappNumber || '882412117';
+  const whatsappNumber = platformConfig.whatsappNumber && platformConfig.whatsappNumber.length >= 10 ? platformConfig.whatsappNumber : '8824125117';
   
   const getWhatsappUrl = (planType?: string) => {
     const text = planType
@@ -34,59 +37,103 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-16 animate-in fade-in duration-300">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-10 lg:p-14 shadow-2xl border border-slate-800">
-        {/* Glow backdrop effects */}
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero Section - Open, Clean, Professional & High-Converting */}
+      <section className="relative pt-6 pb-12 sm:pt-10 sm:pb-16 text-slate-900">
+        {/* Subtle background gradient glow elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-tr from-blue-100/60 via-indigo-50/40 to-slate-50/20 blur-3xl pointer-events-none -z-10 rounded-full" />
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs sm:text-sm font-extrabold tracking-wide uppercase shadow-inner">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-7 px-4">
+          {/* Top Pill Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200/90 text-blue-700 text-xs sm:text-sm font-extrabold tracking-wide uppercase shadow-2xs">
+            <Sparkles className="w-4 h-4 text-amber-500 fill-amber-400" />
             <span>Teacher's #1 Online Mock Test Series Platform</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
-            {platformConfig.headlineText}
+          {/* Main Headline */}
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.15]">
+            Daily Mock Test <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Live Share</span> With Direct Link To Students
           </h1>
 
-          <p className="text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-medium">
+          {/* Subtitle */}
+          <p className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-semibold">
             {platformConfig.subtitleText}
           </p>
 
-          {/* Quick Feature Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs sm:text-sm font-bold text-slate-200">
-              <Share2 className="w-4 h-4 text-blue-400" /> 1-Click WhatsApp Link Share
+          {/* Feature Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm font-extrabold text-slate-800 shadow-2xs">
+              <Share2 className="w-4 h-4 text-blue-600" /> 1-Click WhatsApp Link Share
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs sm:text-sm font-bold text-slate-200">
-              <BarChart3 className="w-4 h-4 text-emerald-400" /> Instant Score & Leaderboard
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm font-extrabold text-slate-800 shadow-2xs">
+              <BarChart3 className="w-4 h-4 text-emerald-600" /> Instant Score & Leaderboard
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs sm:text-sm font-bold text-slate-200">
-              <Smartphone className="w-4 h-4 text-amber-400" /> 100% Mobile Friendly
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm font-extrabold text-slate-800 shadow-2xs">
+              <Smartphone className="w-4 h-4 text-amber-500" /> 100% Mobile Friendly
             </span>
           </div>
 
+          {/* Special 3-Day Free Trial Highlight Box */}
+          <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-300/80 p-4 sm:p-5 rounded-3xl shadow-lg max-w-2xl mx-auto text-center space-y-3 relative overflow-hidden">
+            <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-amber-400/10 rounded-full blur-xl pointer-events-none" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xs">
+              <Gift className="w-4 h-4" /> 0 COST FREE TRIAL OFFER
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              🎁 3 Days Free Trial (10 Mock Tests Creation)
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-700 font-semibold leading-relaxed">
+              शिक्षकों के लिए 3 दिन का मुफ़्त ट्रायल चालू करें। 10 ऑनलाइन मॉक टेस्ट बनाएं, व्हाट्सएप पर शेयर करें और तुरंत रिजल्ट देखें।
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowFreeTrialModal(true)}
+              className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black text-sm rounded-2xl shadow-md transition transform hover:-translate-y-0.5 inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Gift className="w-4 h-4 text-slate-950" />
+              Claim 3-Day Free Trial Now (3 दिन का फ्री ट्रायल पाएं)
+            </button>
+          </div>
+
           {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <button
               type="button"
               onClick={() => setShowLoginModal(true)}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-blue-600/30 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-blue-500/25 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2.5 cursor-pointer"
             >
               <LogIn className="w-5 h-5" />
-              Teacher Panel Login / Signup
+              Teacher Panel Login
             </button>
 
             <a
               href={getWhatsappUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/30 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
+              className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/20 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2.5 cursor-pointer"
             >
               <MessageSquare className="w-5 h-5" />
               Connect on WhatsApp ({whatsappNumber})
             </a>
+          </div>
+
+          {/* Professional Stats / Trust Strip */}
+          <div className="pt-8 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs text-center">
+              <div className="text-xl sm:text-2xl font-black text-blue-600 font-mono">500+</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Institutes</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs text-center">
+              <div className="text-xl sm:text-2xl font-black text-emerald-600 font-mono">10 Lakh+</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Tests Taken</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs text-center">
+              <div className="text-xl sm:text-2xl font-black text-indigo-600 font-mono">100%</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Instant Ranks</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs text-center">
+              <div className="text-xl sm:text-2xl font-black text-amber-500 font-mono">24/7</div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Live Links</div>
+            </div>
           </div>
         </div>
       </section>
@@ -278,11 +325,22 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Login Modal */}
+      {/* Modals */}
       {showLoginModal && (
         <AdminLoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
+          onOpenFreeTrial={() => {
+            setShowLoginModal(false);
+            setShowFreeTrialModal(true);
+          }}
+        />
+      )}
+
+      {showFreeTrialModal && (
+        <FreeTrialModal
+          isOpen={showFreeTrialModal}
+          onClose={() => setShowFreeTrialModal(false)}
         />
       )}
     </div>

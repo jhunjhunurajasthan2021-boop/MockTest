@@ -5,6 +5,7 @@ import { TestRunner } from './TestRunner';
 import { TestResultView } from './TestResultView';
 import { StudentExitScreen } from './StudentExitScreen';
 import { CoachingBrandingHeader } from '../common/CoachingBrandingHeader';
+import { MockTestProLogo } from '../common/MockTestProLogo';
 import { cleanTestId } from '../../utils/cleanTestId';
 import {
   GraduationCap,
@@ -18,7 +19,6 @@ import {
   FileText,
   Search,
   BookOpen,
-  ArrowLeft,
   CheckCircle2,
   Sparkles,
   Layers,
@@ -37,6 +37,8 @@ export const StudentPortal: React.FC = () => {
     activeAttempt,
     setActiveAttempt,
     submitTestAttempt,
+    teachers,
+    currentUser,
   } = useApp();
 
   const [studentInfo, setStudentInfo] = useState<StudentInfo>({
@@ -77,8 +79,7 @@ export const StudentPortal: React.FC = () => {
 
   // If no test is selected:
   if (!activeTest) {
-    let publishedTests = baseTests.filter((t) => t.isPublished);
-    if (publishedTests.length === 0) publishedTests = baseTests;
+    const publishedTests = baseTests.filter((t) => Boolean(t.isPublished));
 
     // If a direct test link was shared, restrict display to matched test if available
     let displayTests = publishedTests;
@@ -382,9 +383,31 @@ export const StudentPortal: React.FC = () => {
   }
 
   // Resolve matching teacher branding or custom test branding for top bar header
-  const coachingLogo = activeTest.coachingLogoUrl || '';
-  const coachingName = activeTest.coachingName || 'Coaching Institute';
-  const coachingTagline = activeTest.coachingTagline || 'Official Online Examination Series';
+  const matchingTeacher = activeTest
+    ? teachers.find(
+        (t) =>
+          t.id === activeTest.teacherId ||
+          t.email.toLowerCase() === activeTest.teacherId.toLowerCase()
+      )
+    : null;
+
+  const coachingLogo =
+    activeTest.coachingLogoUrl ||
+    matchingTeacher?.coachingLogoUrl ||
+    currentUser?.coachingLogoUrl ||
+    '';
+
+  const coachingName =
+    activeTest.coachingName ||
+    matchingTeacher?.instituteName ||
+    currentUser?.instituteName ||
+    'MockTest Pro';
+
+  const coachingTagline =
+    activeTest.coachingTagline ||
+    matchingTeacher?.coachingTagline ||
+    currentUser?.coachingTagline ||
+    'Official Online Examination Series';
 
   return (
     <div className="min-h-screen bg-slate-100/70 pb-12 animate-in fade-in duration-300">
@@ -449,14 +472,7 @@ export const StudentPortal: React.FC = () => {
       {/* 3. MAIN CONTENT LAYOUT: LEFT SIDEBAR AD, CENTER VERIFICATION FORM, RIGHT SIDEBAR AD */}
       <div className="max-w-7xl mx-auto px-4">
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <button
-            onClick={() => setActiveTestId(null)}
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition duration-200"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to All Available Tests
-          </button>
-
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={() => setIsExited(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-extrabold rounded-xl transition shadow-2xs"
@@ -559,17 +575,13 @@ export const StudentPortal: React.FC = () => {
                 </a>
               </div>
             ) : (
-              <div className="hidden lg:block bg-gradient-to-br from-blue-50 to-indigo-50/80 p-5 rounded-2xl border border-blue-100/80 text-slate-800 space-y-3 sticky top-20">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
-                  {coachingName.charAt(0).toUpperCase()}
-                </div>
-                <h3 className="text-sm font-extrabold text-slate-900">{coachingName}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Welcome to the official online examination portal. Prepare with real exam pattern questions, instant evaluation & rank reports.
-                </p>
-                <div className="pt-2 border-t border-blue-100 flex items-center gap-2 text-[11px] font-bold text-blue-700">
-                  <ShieldCheck className="w-4 h-4 text-blue-600" /> Verified Examination Portal
-                </div>
+              <div className="hidden lg:block sticky top-20">
+                <MockTestProLogo
+                  logoUrl={coachingLogo}
+                  name={coachingName}
+                  tagline={coachingTagline || 'Official Online Mock Test Portal'}
+                  variant="hero"
+                />
               </div>
             )}
           </div>

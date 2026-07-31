@@ -2,7 +2,7 @@ import { MockTest, TestAttempt, TeacherAccount, LandingPlatformConfig } from '..
 import { SAMPLE_MOCK_TESTS } from '../data/sampleTests';
 
 export const SUPER_ADMIN_EMAIL = 'jhunjhunu.rajasthan2021@gmail.com';
-export const ADMIN_WHATSAPP_NUMBER = '882412117';
+export const ADMIN_WHATSAPP_NUMBER = '8824125117';
 
 const TESTS_KEY = 'mock_tests_series_v1';
 const ATTEMPTS_KEY = 'mock_test_attempts_v1';
@@ -64,9 +64,14 @@ export function getPlatformConfig(): LandingPlatformConfig {
       return DEFAULT_PLATFORM_CONFIG;
     }
     const parsed = JSON.parse(raw);
+    let num = parsed.whatsappNumber || ADMIN_WHATSAPP_NUMBER;
+    if (num === '882412117' || num === '8824121117' || num.length < 10) {
+      num = ADMIN_WHATSAPP_NUMBER;
+    }
     return {
       ...DEFAULT_PLATFORM_CONFIG,
       ...parsed,
+      whatsappNumber: num,
       testimonials: Array.isArray(parsed?.testimonials) && parsed.testimonials.length > 0 ? parsed.testimonials : DEFAULT_PLATFORM_CONFIG.testimonials,
     };
   } catch (err) {

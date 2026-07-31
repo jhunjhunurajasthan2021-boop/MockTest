@@ -17,6 +17,34 @@ const MainApp: React.FC = () => {
   const [analyticsTest, setAnalyticsTest] = useState<MockTest | null>(null);
 
   const handleOpenCreateWizard = () => {
+    if (
+      currentUser &&
+      !currentUser.isSuperAdmin &&
+      (currentUser.notes?.includes('Free Trial') || (currentUser.accessDaysRemaining !== undefined && currentUser.accessDaysRemaining <= 3))
+    ) {
+      const userEmail = (currentUser.email || '').toLowerCase();
+      const userPass = (currentUser.accessPasscode || '').toLowerCase();
+      const myTestsCount = tests.filter(
+        (t) =>
+          t.teacherId?.toLowerCase() === userEmail ||
+          t.teacherId?.toLowerCase() === userPass ||
+          (!t.teacherId && userEmail === 'teacher@school.edu') ||
+          t.teacherId === 'teacher-admin-01'
+      ).length;
+
+      if (myTestsCount >= 10) {
+        alert(
+          `आपकी 3-दिन फ्री ट्रायल सीमा (10 मॉक टेस्ट) पूर्ण हो चुकी है!\n\nअनलिमिटेड मॉक टेस्ट बनाने के लिए कृपया एडमिन से व्हाट्सएप (8824125117) पर संपर्क करके अपना प्लान अपग्रेड करें।`
+        );
+        window.open(
+          `https://wa.me/918824125117?text=${encodeURIComponent(
+            `Hello Admin, I have reached my 10 Mock Tests limit on 3-Day Free Trial (${currentUser.email}). Please upgrade my account to Unlimited Plan.`
+          )}`,
+          '_blank'
+        );
+        return;
+      }
+    }
     setEditingTest(null);
     setIsWizardOpen(true);
   };

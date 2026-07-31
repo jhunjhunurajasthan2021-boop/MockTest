@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Zap,
   Bot,
+  Upload,
 } from 'lucide-react';
 import { AIAgentPanel } from './AIAgentPanel';
 
@@ -378,14 +379,14 @@ export const SuperAdminPanel: React.FC = () => {
                       <MessageSquare className="w-3.5 h-3.5" /> Send Login Info
                     </a>
 
-                    {/* Edit Custom Days */}
+                    {/* Edit Teacher & Branding */}
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(t)}
-                      className="inline-flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition shadow-xs"
-                      title="Set custom days (कम या ज्यादा दिन करें)"
+                      className="inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition shadow-xs"
+                      title="Edit Teacher details, Coaching Name, Logo & Access Days"
                     >
-                      <Edit3 className="w-3.5 h-3.5" /> Edit Days
+                      <Edit3 className="w-3.5 h-3.5" /> Edit Teacher & Branding
                     </button>
 
                     {/* Block or Unblock */}
@@ -821,7 +822,7 @@ export const SuperAdminPanel: React.FC = () => {
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base">Edit Teacher Validity Days</h3>
+                  <h3 className="font-extrabold text-base">Edit Teacher & Coaching Branding</h3>
                   <p className="text-[11px] text-slate-400">{editingTeacher.name} ({editingTeacher.email})</p>
                 </div>
               </div>
@@ -883,8 +884,26 @@ export const SuperAdminPanel: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">Coaching Logo URL</label>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">Coaching Logo (Upload File or Enter URL)</label>
+                <div className="space-y-1.5">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        if (dataUrl) {
+                          setEditingTeacher((prev) => prev ? { ...prev, coachingLogoUrl: dataUrl } : null);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                    className="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                  />
                   <input
                     type="url"
                     placeholder="https://logo-url.png"
@@ -893,6 +912,7 @@ export const SuperAdminPanel: React.FC = () => {
                     className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl font-mono text-[11px]"
                   />
                 </div>
+              </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-800 mb-1">Coaching Tagline</label>
                   <input

@@ -96,7 +96,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const DEFAULT_SUPER_ADMIN: AuthUser = {
   email: SUPER_ADMIN_EMAIL,
   name: 'Main Admin (Super Admin)',
-  instituteName: 'Main Platform Admin',
+  instituteName: 'MockTest Pro',
+  coachingLogoUrl: '',
+  coachingTagline: 'Official Online Mock Test Series Platform',
   role: 'super_admin',
   isSuperAdmin: true,
   status: 'active',
@@ -343,7 +345,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (matched.status === 'blocked') {
       return {
         success: false,
-        message: 'Your teacher account has been blocked by Main Admin. Please contact Admin on WhatsApp (882412117).',
+        message: 'Your teacher account has been blocked by Main Admin. Please contact Admin on WhatsApp (8824125117).',
       };
     }
 
@@ -354,7 +356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       saveTeachers(loadedTeachers);
       return {
         success: false,
-        message: `Your access expired on ${new Date(matched.expiryDate).toLocaleDateString()}. Please contact Admin on WhatsApp (882412117) to renew.`,
+        message: `Your access expired on ${new Date(matched.expiryDate).toLocaleDateString()}. Please contact Admin on WhatsApp (8824125117) to renew.`,
       };
     }
 
@@ -417,7 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (matched.status === 'blocked') {
       return {
         success: false,
-        message: 'Your account has been blocked by Admin. Please contact on WhatsApp (882412117).',
+        message: 'Your account has been blocked by Admin. Please contact on WhatsApp (8824125117).',
       };
     }
 
@@ -428,7 +430,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       saveTeachers(loadedTeachers);
       return {
         success: false,
-        message: `Your access expired on ${new Date(matched.expiryDate).toLocaleDateString()}. Please contact Admin on WhatsApp (882412117) to renew.`,
+        message: `Your access expired on ${new Date(matched.expiryDate).toLocaleDateString()}. Please contact Admin on WhatsApp (8824125117) to renew.`,
       };
     }
 
@@ -492,6 +494,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       saveTeachers(loadedTeachers);
       setTeachers(loadedTeachers);
     }
+
+    // Also update all existing tests created by this teacher
+    setTests((prevTests) => {
+      const updated = prevTests.map((t) => {
+        if (
+          t.teacherId === currentUser.id ||
+          t.teacherId.toLowerCase() === currentUser.email.toLowerCase()
+        ) {
+          return {
+            ...t,
+            coachingName: updatedUser.instituteName,
+            coachingLogoUrl: updatedUser.coachingLogoUrl,
+            coachingTagline: updatedUser.coachingTagline,
+          };
+        }
+        return t;
+      });
+      saveTests(updated);
+      return updated;
+    });
   };
 
   const logout = () => {
