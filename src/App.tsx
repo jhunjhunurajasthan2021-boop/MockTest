@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { AppProvider, useApp, checkIsFreeTrial } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './components/admin/Dashboard';
 import { LandingPage } from './components/landing/LandingPage';
@@ -17,11 +17,7 @@ const MainApp: React.FC = () => {
   const [analyticsTest, setAnalyticsTest] = useState<MockTest | null>(null);
 
   const handleOpenCreateWizard = () => {
-    if (
-      currentUser &&
-      !currentUser.isSuperAdmin &&
-      (currentUser.notes?.includes('Free Trial') || (currentUser.accessDaysRemaining !== undefined && currentUser.accessDaysRemaining <= 3))
-    ) {
+    if (checkIsFreeTrial(currentUser)) {
       const userEmail = (currentUser.email || '').toLowerCase();
       const userPass = (currentUser.accessPasscode || '').toLowerCase();
       const myTestsCount = tests.filter(

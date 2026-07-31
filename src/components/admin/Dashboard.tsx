@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp, checkIsFreeTrial } from '../../context/AppContext';
 import { MockTest } from '../../types';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { QRCodeModal } from '../common/QRCodeModal';
@@ -88,11 +88,7 @@ export const Dashboard: React.FC<{
   }, [currentUser]);
 
   const handleCreateTestClick = () => {
-    if (
-      !currentUser?.isSuperAdmin &&
-      (currentUser?.notes?.includes('Free Trial') || (currentUser?.accessDaysRemaining !== undefined && currentUser.accessDaysRemaining <= 3)) &&
-      displayTests.length >= 10
-    ) {
+    if (checkIsFreeTrial(currentUser) && displayTests.length >= 10) {
       alert(
         `आपकी 3-दिन फ्री ट्रायल सीमा (10 मॉक टेस्ट) पूर्ण हो चुकी है!\n\nअनलिमिटेड मॉक टेस्ट बनाने के लिए एडमिन से व्हाट्सएप (${ADMIN_WHATSAPP_NUMBER}) पर संपर्क करके प्लान अपग्रेड करें।`
       );
@@ -282,7 +278,7 @@ export const Dashboard: React.FC<{
           </div>
 
           {/* Teacher Free Trial Active Banner */}
-          {!currentUser?.isSuperAdmin && (
+          {checkIsFreeTrial(currentUser) && (
             <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-slate-900 shadow-xs">
               <div className="flex items-start sm:items-center gap-3">
                 <div className="p-2.5 bg-amber-400 text-slate-950 rounded-xl shrink-0 font-black text-base shadow-xs">

@@ -171,8 +171,10 @@ export interface AuthUser {
   allowCustomBranding?: boolean;
   role: UserRole;
   accessPasscode?: string;
+  accessDays?: number;
   accessDaysRemaining?: number;
   expiryDate?: string;
+  notes?: string;
   isSuperAdmin: boolean;
   status?: string;
 }

@@ -102,8 +102,27 @@ const DEFAULT_SUPER_ADMIN: AuthUser = {
   role: 'super_admin',
   isSuperAdmin: true,
   status: 'active',
+  accessDays: 99999,
   accessDaysRemaining: 99999,
 };
+
+export function checkIsFreeTrial(user: AuthUser | null): boolean {
+  if (!user || user.isSuperAdmin) return false;
+
+  const accessDays = user.accessDays;
+  const daysRem = user.accessDaysRemaining;
+
+  // If teacher's plan validity or remaining days is > 3, it is NOT a free trial
+  if (accessDays !== undefined && accessDays > 3) return false;
+  if (daysRem !== undefined && daysRem > 3) return false;
+
+  // Free trial if explicit trial tag or validity <= 3 days
+  return (
+    (accessDays !== undefined && accessDays <= 3) ||
+    (daysRem !== undefined && daysRem <= 3) ||
+    (user.notes?.includes('Free Trial') ?? false)
+  );
+}
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<'admin' | 'student'>('admin');
@@ -152,7 +171,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 status: isExpired ? 'expired' : matched.status,
                 accessPasscode: matched.accessPasscode,
                 expiryDate: matched.expiryDate,
+                accessDays: matched.accessDays,
                 accessDaysRemaining: daysRem,
+                notes: matched.notes,
               });
             }
           }
@@ -375,7 +396,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'active',
       accessPasscode: matched.accessPasscode,
       expiryDate: matched.expiryDate,
+      accessDays: matched.accessDays,
       accessDaysRemaining: daysRem,
+      notes: matched.notes,
     };
 
     setCurrentUser(authUser);
@@ -449,7 +472,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'active',
       accessPasscode: matched.accessPasscode,
       expiryDate: matched.expiryDate,
+      accessDays: matched.accessDays,
       accessDaysRemaining: daysRem,
+      notes: matched.notes,
     };
 
     setCurrentUser(authUser);
@@ -566,6 +591,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // If updating current teacher's account, also sync currentUser
     if (currentUser && currentUser.email.toLowerCase() === newTeacher.email.toLowerCase()) {
+      const diffMs = new Date(newTeacher.expiryDate).getTime() - Date.now();
+      const daysRem = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
       const updatedUser: AuthUser = {
         ...currentUser,
         name: newTeacher.name,
@@ -573,6 +600,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         coachingLogoUrl: newTeacher.coachingLogoUrl,
         coachingTagline: newTeacher.coachingTagline,
         allowCustomBranding: newTeacher.allowCustomBranding,
+        accessDays: newTeacher.accessDays,
+        expiryDate: newTeacher.expiryDate,
+        accessDaysRemaining: daysRem,
+        notes: newTeacher.notes,
       };
       setCurrentUser(updatedUser);
       try {
