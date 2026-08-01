@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { MockTest, TestAttempt, TeacherAccount } from '../types';
+import { MockTest, TestAttempt, TeacherAccount, LandingPlatformConfig } from '../types';
 import {
   saveTests,
   getStoredTests,
@@ -13,12 +13,16 @@ import {
   getStoredTeachers,
   saveTeachers,
   deleteTeacher as storageDeleteTeacher,
+  savePlatformConfig,
+  getPlatformConfig,
 } from './storage';
 import { cleanTestId } from '../utils/cleanTestId';
 
 const TESTS_COLLECTION = 'tests';
 const ATTEMPTS_COLLECTION = 'attempts';
 const TEACHERS_COLLECTION = 'teachers';
+const CONFIG_COLLECTION = 'config';
+const PLATFORM_CONFIG_DOC_ID = 'platform_main';
 
 // Save or Update Test in Firestore & LocalStorage
 export async function saveTestCloud(test: MockTest): Promise<void> {
@@ -289,4 +293,41 @@ export async function deleteTeacherCloud(teacherId: string, email?: string): Pro
   } catch (err) {
     console.warn(`[Cloud Storage] Failed to delete teacher ${teacherId} from Firestore:`, err);
   }
+}
+
+// Save Platform Config to Firestore Cloud DB & LocalStorage
+export async function savePlatformConfigCloud(config: LandingPlatformConfig): Promise<void> {
+  try {
+    savePlatformConfig(config);
+    if (db) {
+      const docRef = doc(db, CONFIG_COLLECTION, PLATFORM_CONFIG_DOC_ID);
+      await setDoc(docRef, JSON.parse(JSON.stringify(config)), { merge: true });
+      console.log('[Cloud Storage] Saved platformConfig to Firestore');
+    }
+  } catch (err) {
+    console.warn('[Cloud Storage] Failed to save platformConfig to Firestore:', err);
+  }
+}
+
+// Fetch Platform Config from Firestore Cloud DB
+export async function fetchPlatformConfigCloud(): Promise<LandingPlatformConfig | null> {
+  const localConfig = getPlatformConfig();
+  try {
+    if (db) {
+      const docRef = doc(db, CONFIG_COLLECTION, PLATFORM_CONFIG_DOC_ID);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const cloudConfig = snap.data() as LandingPlatformConfig;
+        const merged = {
+          ...localConfig,
+          ...cloudConfig,
+        };
+        savePlatformConfig(merged);
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('[Cloud Storage] Error fetching platformConfig from Firestore:', err);
+  }
+  return localConfig;
 }

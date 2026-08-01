@@ -57,6 +57,12 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
           src={defaultAppLogoUrl}
           alt={displayName}
           className={`${imgHeight} w-auto object-contain drop-shadow-xs`}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            if (!target.src.endsWith('/logo.png')) {
+              target.src = '/logo.png';
+            }
+          }}
         />
       </div>
     );
@@ -78,7 +84,12 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
           referrerPolicy="no-referrer"
           className={`${imgHeight} w-auto object-contain`}
           onError={(e) => {
-            (e.target as HTMLElement).style.display = 'none';
+            const target = e.target as HTMLImageElement;
+            if (defaultAppLogoUrl && !target.src.endsWith(defaultAppLogoUrl)) {
+              target.src = defaultAppLogoUrl;
+            } else if (!target.src.endsWith('/logo.png')) {
+              target.src = '/logo.png';
+            }
           }}
         />
       </div>

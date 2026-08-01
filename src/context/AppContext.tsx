@@ -29,6 +29,8 @@ import {
   saveTeacherCloud,
   fetchAllTeachersCloud,
   deleteTeacherCloud,
+  savePlatformConfigCloud,
+  fetchPlatformConfigCloud,
 } from '../services/firestoreStorage';
 
 export type { AuthUser };
@@ -265,6 +267,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTeachers(cloudTeachers);
       }
     });
+
+    fetchPlatformConfigCloud().then((cloudConfig) => {
+      if (cloudConfig) {
+        setPlatformConfigState(cloudConfig);
+      }
+    });
   }, []);
 
   // Effect to auto-fetch missing active test from cloud if not found in local memory
@@ -311,8 +319,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updatePlatformConfigHandler = (newConfig: LandingPlatformConfig) => {
-    const saved = savePlatformConfig(newConfig);
-    setPlatformConfigState({ ...saved });
+    savePlatformConfigCloud(newConfig);
+    setPlatformConfigState({ ...newConfig });
   };
 
 
