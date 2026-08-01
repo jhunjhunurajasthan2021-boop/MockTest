@@ -125,7 +125,11 @@ export const Dashboard: React.FC<{
   const displayTests = tests.filter((t) => {
     if (currentUser?.isSuperAdmin) {
       if (selectedTeacherFilter === 'all') return true;
-      return t.teacherId?.toLowerCase() === selectedTeacherFilter.toLowerCase();
+      return (
+        t.teacherId?.toLowerCase() === selectedTeacherFilter.toLowerCase() ||
+        (selectedTeacherFilter.toLowerCase() === 'teacher@school.edu' &&
+          (!t.teacherId || t.teacherId === 'teacher-admin-01'))
+      );
     }
     if (!currentUser) return true;
     const userEmail = (currentUser.email || '').toLowerCase();
@@ -135,8 +139,7 @@ export const Dashboard: React.FC<{
     return (
       testTeacher === userEmail ||
       testTeacher === userPasscode ||
-      (!t.teacherId && userEmail === 'teacher@school.edu') ||
-      testTeacher === 'teacher-admin-01'
+      (userEmail === 'teacher@school.edu' && (!t.teacherId || testTeacher === 'teacher-admin-01'))
     );
   });
 

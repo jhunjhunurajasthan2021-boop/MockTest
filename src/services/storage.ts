@@ -161,35 +161,17 @@ export function savePlatformConfig(config: LandingPlatformConfig): LandingPlatfo
 }
 
 
-const INITIAL_TEACHERS: TeacherAccount[] = [
-  {
-    id: 'teacher-demo-1',
-    name: 'Sharma Sir',
-    email: 'teacher@school.edu',
-    phone: '9876543210',
-    instituteName: 'Jhunjhunu Coaching Center',
-    status: 'active',
-    accessPasscode: 'TCH-8824',
-    password: '123456',
-    grantedAt: new Date().toISOString(),
-    accessDays: 365,
-    expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-    notes: 'Demo Teacher Account',
-  },
-];
+const INITIAL_TEACHERS: TeacherAccount[] = [];
 
 export function getStoredTeachers(): TeacherAccount[] {
   try {
     const raw = localStorage.getItem(TEACHERS_KEY);
     const deletedIds = getDeletedTeacherIds();
     if (raw === null) {
-      const filteredInitial = INITIAL_TEACHERS.filter(
-        (t) => !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
-      );
       try {
-        localStorage.setItem(TEACHERS_KEY, JSON.stringify(filteredInitial));
+        localStorage.setItem(TEACHERS_KEY, JSON.stringify([]));
       } catch (e) {}
-      return filteredInitial;
+      return [];
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -249,11 +231,10 @@ export function getStoredTests(): MockTest[] {
     const raw = localStorage.getItem(TESTS_KEY);
     const deletedIds = getDeletedTestIds();
     if (raw === null) {
-      const filteredInitial = SAMPLE_MOCK_TESTS.filter((t) => !deletedIds.includes(t.id));
       try {
-        localStorage.setItem(TESTS_KEY, JSON.stringify(filteredInitial));
+        localStorage.setItem(TESTS_KEY, JSON.stringify([]));
       } catch (e) {}
-      return filteredInitial;
+      return [];
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {

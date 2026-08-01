@@ -344,32 +344,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let loadedTeachers = getStoredTeachers();
     let matched = loadedTeachers.find(
-      (t) => t.email.toLowerCase() === cleanEmail
+      (t) => t.email.toLowerCase() === cleanEmail || (t.accessPasscode && t.accessPasscode.toLowerCase() === cleanEmail)
+    ) || teachers.find(
+      (t) => t.email.toLowerCase() === cleanEmail || (t.accessPasscode && t.accessPasscode.toLowerCase() === cleanEmail)
     );
 
     if (!matched) {
-      // Auto-register teacher account for new email
-      const isEmail = cleanEmail.includes('@');
-      const teacherEmailToUse = isEmail ? cleanEmail : `${cleanEmail}@coaching.com`;
-      const teacherNameToUse = isEmail ? cleanEmail.split('@')[0].toUpperCase() + ' Teacher' : `Teacher (${cleanEmail})`;
-      
-      const created = grantOrUpdateTeacherAccess({
-        name: teacherNameToUse,
-        email: teacherEmailToUse,
-        phone: '9876543210',
-        instituteName: 'Coaching Institute',
-        accessDays: 365,
-        password: cleanPass || 'password123',
-        notes: 'Registered Teacher Account',
-      });
-      matched = created;
-    } else {
-      if (cleanPass && matched.password && matched.password !== cleanPass) {
-        return {
-          success: false,
-          message: 'Incorrect Password. Please enter correct account password.',
-        };
-      }
+      return {
+        success: false,
+        message: 'Teacher license not found for this account. Please ask Super Admin on WhatsApp (8824125117) to grant access or claim Free Trial.',
+      };
+    }
+
+    if (cleanPass && matched.password && matched.password !== cleanPass) {
+      return {
+        success: false,
+        message: 'Incorrect Password. Please enter correct account password.',
+      };
     }
 
     if (matched.status === 'blocked') {
@@ -432,20 +423,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let loadedTeachers = getStoredTeachers();
     let matched = loadedTeachers.find(
       (t) => t.phone && t.phone.replace(/\D/g, '') === cleanPhone
+    ) || teachers.find(
+      (t) => t.phone && t.phone.replace(/\D/g, '') === cleanPhone
     );
 
     if (!matched) {
-      // Auto-register teacher with mobile number
-      const created = grantOrUpdateTeacherAccess({
-        name: `Teacher (${cleanPhone.slice(-4)})`,
-        email: `teacher_${cleanPhone}@coaching.com`,
-        phone: cleanPhone,
-        instituteName: 'Coaching Institute',
-        accessDays: 365,
-        password: 'password123',
-        notes: 'Mobile OTP Verified Account',
-      });
-      matched = created;
+      return {
+        success: false,
+        message: 'No registered teacher account found with this mobile number. Please contact Super Admin on WhatsApp (8824125117) to grant license.',
+      };
     }
 
     if (matched.status === 'blocked') {

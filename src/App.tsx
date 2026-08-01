@@ -24,8 +24,7 @@ const MainApp: React.FC = () => {
         (t) =>
           t.teacherId?.toLowerCase() === userEmail ||
           t.teacherId?.toLowerCase() === userPass ||
-          (!t.teacherId && userEmail === 'teacher@school.edu') ||
-          t.teacherId === 'teacher-admin-01'
+          (userEmail === 'teacher@school.edu' && (!t.teacherId || t.teacherId === 'teacher-admin-01'))
       ).length;
 
       if (myTestsCount >= 10) {
