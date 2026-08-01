@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, GraduationCap } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -23,6 +23,13 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
   onClick,
   className = '',
 }) => {
+  const [customImgFailed, setCustomImgFailed] = useState(false);
+  const [defaultImgFailed, setDefaultImgFailed] = useState(false);
+
+  useEffect(() => {
+    setCustomImgFailed(false);
+  }, [logoUrl]);
+
   let platformConfig: any = null;
   try {
     const appCtx = useApp();
@@ -31,69 +38,86 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
     platformConfig = null;
   }
 
-  // Check if logo is custom (not empty, not default static files)
+  // Check if logo is custom (valid URL string, not default static files)
   const isCustomLogo =
     Boolean(logoUrl) &&
+    typeof logoUrl === 'string' &&
     logoUrl !== '/logo.png' &&
     logoUrl !== '/mocktest_pro_logo.jpg' &&
-    logoUrl?.trim() !== '';
+    logoUrl.trim() !== '' &&
+    (logoUrl.startsWith('http://') ||
+     logoUrl.startsWith('https://') ||
+     logoUrl.startsWith('data:image/') ||
+     logoUrl.startsWith('/'));
 
   const displayName = name && name !== 'Coaching Institute' ? name : 'MockTest Pro';
   const isDefaultBrand = !isCustomLogo && displayName === 'MockTest Pro';
 
   const defaultAppLogoUrl = platformConfig?.customAppLogo || '/logo.png';
 
-  // 1. DEFAULT APP LOGO (Image uploaded by user or fallback)
-  const renderDefaultLogo = (logoSize: 'sm' | 'md' | 'lg' = 'md') => {
-    const imgHeight = {
-      sm: 'h-8 sm:h-9 max-w-[120px]',
-      md: 'h-9 sm:h-11 max-w-[180px]',
-      lg: 'h-14 sm:h-20 max-w-[300px]',
+  // Fallback badge if image load fails completely
+  const renderFallbackBadge = (logoSize: 'sm' | 'md' | 'lg' = 'md') => {
+    const badgeSize = {
+      sm: 'w-8 h-8 text-xs',
+      md: 'w-9 h-9 sm:w-10 sm:h-10 text-sm',
+      lg: 'w-12 h-12 sm:w-16 sm:h-16 text-xl sm:text-2xl',
     }[logoSize];
 
+    const initial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'M';
+
     return (
-      <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
-        <img
-          src={defaultAppLogoUrl}
-          alt={displayName}
-          className={`${imgHeight} w-auto object-contain drop-shadow-xs`}
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            if (!target.src.endsWith('/logo.png')) {
-              target.src = '/logo.png';
-            }
-          }}
-        />
+      <div
+        className={`flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black shadow-xs shrink-0 ${badgeSize}`}
+      >
+        {initial}
       </div>
     );
   };
 
-  // 2. CUSTOM COACHING LOGO CONTAINER
-  const renderCustomLogo = (logoSize: 'sm' | 'md' | 'lg' = 'md') => {
+  const renderLogoImage = (logoSize: 'sm' | 'md' | 'lg' = 'md') => {
     const imgHeight = {
       sm: 'h-8 sm:h-9 max-w-[120px]',
       md: 'h-9 sm:h-11 max-w-[180px]',
       lg: 'h-14 sm:h-20 max-w-[300px]',
     }[logoSize];
 
-    return (
-      <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
-        <img
-          src={logoUrl!}
-          alt={displayName}
-          referrerPolicy="no-referrer"
-          className={`${imgHeight} w-auto object-contain`}
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            if (defaultAppLogoUrl && !target.src.endsWith(defaultAppLogoUrl)) {
-              target.src = defaultAppLogoUrl;
-            } else if (!target.src.endsWith('/logo.png')) {
-              target.src = '/logo.png';
-            }
-          }}
-        />
-      </div>
-    );
+    // 1. Try Custom Logo if provided and not marked failed
+    if (isCustomLogo && !customImgFailed) {
+      return (
+        <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+          <img
+            src={logoUrl!}
+            alt={displayName}
+            referrerPolicy="no-referrer"
+            className={`${imgHeight} w-auto object-contain`}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              setCustomImgFailed(true);
+            }}
+          />
+        </div>
+      );
+    }
+
+    // 2. Try Default App Logo if not marked failed
+    if (defaultAppLogoUrl && !defaultImgFailed) {
+      return (
+        <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+          <img
+            src={defaultAppLogoUrl}
+            alt={displayName}
+            className={`${imgHeight} w-auto object-contain drop-shadow-xs`}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              setDefaultImgFailed(true);
+            }}
+          />
+        </div>
+      );
+    }
+
+    // 3. Fallback Initial Badge
+    return renderFallbackBadge(logoSize);
   };
 
   // NAVBAR VARIANT (Top Navigation Bar)
@@ -103,7 +127,7 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
         onClick={onClick}
         className={`flex items-center gap-3 group text-left cursor-pointer select-none ${className}`}
       >
-        {isCustomLogo ? renderCustomLogo('md') : renderDefaultLogo('md')}
+        {renderLogoImage('md')}
 
         <div className="flex flex-col justify-center">
           <div className="flex items-center gap-1.5">
@@ -133,7 +157,7 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
           <div className="flex items-center gap-4 sm:gap-5">
-            {isCustomLogo ? renderCustomLogo('lg') : renderDefaultLogo('lg')}
+            {renderLogoImage('lg')}
 
             <div>
               <div className="flex items-center gap-2">
@@ -162,7 +186,7 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
       onClick={onClick}
       className={`p-3 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 ${className}`}
     >
-      {isCustomLogo ? renderCustomLogo('sm') : renderDefaultLogo('sm')}
+      {renderLogoImage('sm')}
       <div className="min-w-0 flex-1">
         <h4 className="text-sm font-black text-slate-900 truncate">{displayName}</h4>
         <p className="text-xs text-slate-500 truncate font-medium">

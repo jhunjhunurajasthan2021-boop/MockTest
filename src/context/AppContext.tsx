@@ -520,6 +520,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         coachingTagline: updatedUser.coachingTagline,
       };
       saveTeachers(loadedTeachers);
+      saveTeacherCloud(loadedTeachers[idx]);
       setTeachers(loadedTeachers);
     }
 
@@ -530,12 +531,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           t.teacherId === currentUser.id ||
           t.teacherId.toLowerCase() === currentUser.email.toLowerCase()
         ) {
-          return {
+          const updatedTest = {
             ...t,
             coachingName: updatedUser.instituteName,
             coachingLogoUrl: updatedUser.coachingLogoUrl,
             coachingTagline: updatedUser.coachingTagline,
           };
+          saveTestCloud(updatedTest);
+          return updatedTest;
         }
         return t;
       });
@@ -568,25 +571,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const expiryDate = new Date(now.getTime() + data.accessDays * 24 * 60 * 60 * 1000).toISOString();
     const passcode = `TCH-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const cleanEmail = data.email.toLowerCase().trim();
     const existingTeachers = getStoredTeachers();
-    const existing = data.id ? existingTeachers.find((t) => t.id === data.id) : undefined;
+    const existing = existingTeachers.find(
+      (t) => (data.id && t.id === data.id) || t.email.toLowerCase().trim() === cleanEmail
+    );
 
     const newTeacher: TeacherAccount = {
-      id: data.id || `tch-${Date.now()}`,
-      name: data.name,
-      email: data.email.toLowerCase().trim(),
-      phone: data.phone.trim(),
-      instituteName: data.instituteName || '',
+      id: data.id || existing?.id || `tch-${Date.now()}`,
+      name: data.name || existing?.name || '',
+      email: cleanEmail,
+      phone: data.phone.trim() || existing?.phone || '',
+      instituteName: data.instituteName !== undefined ? data.instituteName : existing?.instituteName || '',
       coachingLogoUrl: data.coachingLogoUrl !== undefined ? data.coachingLogoUrl : existing?.coachingLogoUrl || '',
       coachingTagline: data.coachingTagline !== undefined ? data.coachingTagline : existing?.coachingTagline || '',
       allowCustomBranding: data.allowCustomBranding !== undefined ? data.allowCustomBranding : (existing?.allowCustomBranding !== false),
       status: 'active',
       accessPasscode: existing?.accessPasscode || passcode,
       password: data.password ? data.password.trim() : existing?.password || '123456',
-      grantedAt: now.toISOString(),
+      grantedAt: existing?.grantedAt || now.toISOString(),
       accessDays: data.accessDays,
       expiryDate,
-      notes: data.notes || '',
+      notes: data.notes || existing?.notes || '',
     };
 
     const updatedList = createOrUpdateTeacher(newTeacher);
