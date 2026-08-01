@@ -24,7 +24,8 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
   className = '',
 }) => {
   const [customImgFailed, setCustomImgFailed] = useState(false);
-  const [defaultImgFailed, setDefaultImgFailed] = useState(false);
+  const [appConfigImgFailed, setAppConfigImgFailed] = useState(false);
+  const [staticLogoFailed, setStaticLogoFailed] = useState(false);
 
   useEffect(() => {
     setCustomImgFailed(false);
@@ -53,9 +54,9 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
   const displayName = name && name !== 'Coaching Institute' ? name : 'MockTest Pro';
   const isDefaultBrand = !isCustomLogo && displayName === 'MockTest Pro';
 
-  const defaultAppLogoUrl = platformConfig?.customAppLogo || '/logo.png';
+  const customAppLogoUrl = platformConfig?.customAppLogo;
 
-  // Fallback badge if image load fails completely
+  // Fallback badge if all image URLs fail
   const renderFallbackBadge = (logoSize: 'sm' | 'md' | 'lg' = 'md') => {
     const badgeSize = {
       sm: 'w-8 h-8 text-xs',
@@ -63,13 +64,17 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
       lg: 'w-12 h-12 sm:w-16 sm:h-16 text-xl sm:text-2xl',
     }[logoSize];
 
-    const initial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'M';
+    const iconSize = {
+      sm: 'w-4 h-4',
+      md: 'w-5 h-5',
+      lg: 'w-8 h-8',
+    }[logoSize];
 
     return (
       <div
-        className={`flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black shadow-xs shrink-0 ${badgeSize}`}
+        className={`flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-800 text-white font-black shadow-xs shrink-0 ${badgeSize}`}
       >
-        {initial}
+        <GraduationCap className={iconSize} />
       </div>
     );
   };
@@ -81,7 +86,7 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
       lg: 'h-14 sm:h-20 max-w-[300px]',
     }[logoSize];
 
-    // 1. Try Custom Logo if provided and not marked failed
+    // 1. Try Custom Coaching Logo if provided and not marked failed
     if (isCustomLogo && !customImgFailed) {
       return (
         <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
@@ -99,24 +104,41 @@ export const MockTestProLogo: React.FC<BrandLogoProps> = ({
       );
     }
 
-    // 2. Try Default App Logo if not marked failed
-    if (defaultAppLogoUrl && !defaultImgFailed) {
+    // 2. Try Platform Custom App Logo if set in SuperAdmin and not marked failed
+    if (customAppLogoUrl && !appConfigImgFailed) {
       return (
         <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
           <img
-            src={defaultAppLogoUrl}
+            src={customAppLogoUrl}
             alt={displayName}
             className={`${imgHeight} w-auto object-contain drop-shadow-xs`}
             onError={(e) => {
               e.currentTarget.style.display = 'none';
-              setDefaultImgFailed(true);
+              setAppConfigImgFailed(true);
             }}
           />
         </div>
       );
     }
 
-    // 3. Fallback Initial Badge
+    // 3. Try Static /logo.png
+    if (!staticLogoFailed) {
+      return (
+        <div className="flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+          <img
+            src="/logo.png"
+            alt={displayName}
+            className={`${imgHeight} w-auto object-contain drop-shadow-xs`}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              setStaticLogoFailed(true);
+            }}
+          />
+        </div>
+      );
+    }
+
+    // 4. Fallback GraduationCap Badge
     return renderFallbackBadge(logoSize);
   };
 
