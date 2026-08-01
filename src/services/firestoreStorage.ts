@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { MockTest, TestAttempt, TeacherAccount, LandingPlatformConfig } from '../types';
 import {
@@ -8,8 +8,10 @@ import {
   getStoredAttempts,
   getDeletedTestIds,
   addDeletedTestId,
+  removeDeletedTestId,
   getDeletedTeacherIds,
   addDeletedTeacherId,
+  removeDeletedTeacherId,
   getStoredTeachers,
   saveTeachers,
   deleteTeacher as storageDeleteTeacher,
@@ -27,6 +29,11 @@ const PLATFORM_CONFIG_DOC_ID = 'platform_main';
 // Save or Update Test in Firestore & LocalStorage
 export async function saveTestCloud(test: MockTest): Promise<void> {
   try {
+    // Un-mark test from deleted IDs list if re-saving
+    removeDeletedTestId(test.id);
+    const cleaned = cleanTestId(test.id);
+    if (cleaned) removeDeletedTestId(cleaned);
+
     // 1. Save to localStorage immediately for instant offline/local rendering
     const localTests = getStoredTests();
     const existingIdx = localTests.findIndex((t) => t.id === test.id);
@@ -236,6 +243,8 @@ export async function deleteTestCloud(testId: string): Promise<void> {
 // Save or Update Teacher in Firestore
 export async function saveTeacherCloud(teacher: TeacherAccount): Promise<void> {
   try {
+    removeDeletedTeacherId(teacher.id);
+    removeDeletedTeacherId(teacher.email);
     if (db) {
       const docRef = doc(db, TEACHERS_COLLECTION, teacher.id);
       await setDoc(docRef, JSON.parse(JSON.stringify(teacher)), { merge: true });
@@ -330,4 +339,127 @@ export async function fetchPlatformConfigCloud(): Promise<LandingPlatformConfig 
     console.warn('[Cloud Storage] Error fetching platformConfig from Firestore:', err);
   }
   return localConfig;
+}
+
+// Real-Time Subscriptions for live synchronization across browser tabs / devices
+
+export function subscribeTestsCloud(onUpdate: (tests: MockTest[]) => void): () => void {
+  if (!db) return () => {};
+
+  try {
+    const collRef = collection(db, TESTS_COLLECTION);
+    return onSnapshot(
+      collRef,
+      (snapshot) => {
+        const deletedIds = getDeletedTestIds();
+        const cloudTests: MockTest[] = [];
+        snapshot.forEach((docSnap) => {
+          if (docSnap.exists()) {
+            const tData = docSnap.data() as MockTest;
+            if (tData && tData.id && !deletedIds.includes(tData.id) && !deletedIds.includes(cleanTestId(tData.id))) {
+              cloudTests.push(tData);
+            }
+          }
+        });
+
+        // Also merge with local tests if any local test is not yet in cloud or deleted
+        const localTests = getStoredTests();
+        const mergedMap = new Map<string, MockTest>();
+        localTests.forEach((t) => {
+          if (!deletedIds.includes(t.id) && !deletedIds.includes(cleanTestId(t.id))) {
+            mergedMap.set(t.id, t);
+          }
+        });
+        cloudTests.forEach((t) => mergedMap.set(t.id, t));
+
+        const mergedList = Array.from(mergedMap.values());
+        saveTests(mergedList);
+        onUpdate(mergedList);
+      },
+      (error) => {
+        console.warn('[Cloud Storage] Realtime tests listener error:', error);
+      }
+    );
+  } catch (e) {
+    console.warn('[Cloud Storage] Failed to attach tests subscription:', e);
+    return () => {};
+  }
+}
+
+export function subscribeTeachersCloud(onUpdate: (teachers: TeacherAccount[]) => void): () => void {
+  if (!db) return () => {};
+
+  try {
+    const collRef = collection(db, TEACHERS_COLLECTION);
+    return onSnapshot(
+      collRef,
+      (snapshot) => {
+        const deletedTeacherIds = getDeletedTeacherIds();
+        const cloudTeachers: TeacherAccount[] = [];
+        snapshot.forEach((docSnap) => {
+          if (docSnap.exists()) {
+            const t = docSnap.data() as TeacherAccount;
+            if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+              cloudTeachers.push(t);
+            }
+          }
+        });
+
+        const localTeachers = getStoredTeachers();
+        const mergedMap = new Map<string, TeacherAccount>();
+        localTeachers.forEach((t) => {
+          if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+            mergedMap.set(t.id, t);
+          }
+        });
+        cloudTeachers.forEach((t) => mergedMap.set(t.id, t));
+
+        const mergedList = Array.from(mergedMap.values());
+        saveTeachers(mergedList);
+        onUpdate(mergedList);
+      },
+      (error) => {
+        console.warn('[Cloud Storage] Realtime teachers listener error:', error);
+      }
+    );
+  } catch (e) {
+    console.warn('[Cloud Storage] Failed to attach teachers subscription:', e);
+    return () => {};
+  }
+}
+
+export function subscribeAttemptsCloud(onUpdate: (attempts: TestAttempt[]) => void): () => void {
+  if (!db) return () => {};
+
+  try {
+    const collRef = collection(db, ATTEMPTS_COLLECTION);
+    return onSnapshot(
+      collRef,
+      (snapshot) => {
+        const cloudAttempts: TestAttempt[] = [];
+        snapshot.forEach((docSnap) => {
+          if (docSnap.exists()) {
+            cloudAttempts.push(docSnap.data() as TestAttempt);
+          }
+        });
+
+        const localAttempts = getStoredAttempts();
+        const mergedMap = new Map<string, TestAttempt>();
+        localAttempts.forEach((a) => mergedMap.set(a.id, a));
+        cloudAttempts.forEach((a) => mergedMap.set(a.id, a));
+
+        const mergedList = Array.from(mergedMap.values());
+        try {
+          localStorage.setItem('mock_test_attempts_v1', JSON.stringify(mergedList));
+        } catch (e) {}
+        onUpdate(mergedList);
+      },
+      (error) => {
+        console.warn('[Cloud Storage] Realtime attempts listener error:', error);
+      }
+    );
+  } catch (e) {
+    console.warn('[Cloud Storage] Failed to attach attempts subscription:', e);
+    return () => {};
+  }
 }

@@ -31,7 +31,11 @@ import {
   deleteTeacherCloud,
   savePlatformConfigCloud,
   fetchPlatformConfigCloud,
+  subscribeTestsCloud,
+  subscribeTeachersCloud,
+  subscribeAttemptsCloud,
 } from '../services/firestoreStorage';
+import { removeDeletedTestId } from '../services/storage';
 
 export type { AuthUser };
 
@@ -165,6 +169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const daysRem = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
               setCurrentUser({
+                id: matched.id,
                 email: matched.email,
                 name: matched.name,
                 instituteName: matched.instituteName || '',
@@ -248,31 +253,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Sync cloud tests, attempts, and teachers on mount
+  // Sync cloud tests, attempts, and teachers on mount and maintain real-time subscriptions
   useEffect(() => {
     fetchAllTestsCloud().then((cloudTests) => {
-      if (cloudTests) {
-        setTests(cloudTests);
-      }
+      if (cloudTests) setTests(cloudTests);
     });
 
     fetchAttemptsCloud().then((cloudAttempts) => {
-      if (cloudAttempts) {
-        setAttempts(cloudAttempts);
-      }
+      if (cloudAttempts) setAttempts(cloudAttempts);
     });
 
     fetchAllTeachersCloud().then((cloudTeachers) => {
-      if (cloudTeachers) {
-        setTeachers(cloudTeachers);
-      }
+      if (cloudTeachers) setTeachers(cloudTeachers);
     });
 
     fetchPlatformConfigCloud().then((cloudConfig) => {
-      if (cloudConfig) {
-        setPlatformConfigState(cloudConfig);
-      }
+      if (cloudConfig) setPlatformConfigState(cloudConfig);
     });
+
+    // Attach real-time subscriptions so any add/edit/delete syncs instantly across windows & devices
+    const unsubTests = subscribeTestsCloud((liveTests) => {
+      if (liveTests) setTests(liveTests);
+    });
+    const unsubTeachers = subscribeTeachersCloud((liveTeachers) => {
+      if (liveTeachers) setTeachers(liveTeachers);
+    });
+    const unsubAttempts = subscribeAttemptsCloud((liveAttempts) => {
+      if (liveAttempts) setAttempts(liveAttempts);
+    });
+
+    return () => {
+      unsubTests();
+      unsubTeachers();
+      unsubAttempts();
+    };
   }, []);
 
   // Effect to auto-fetch missing active test from cloud if not found in local memory
@@ -393,6 +407,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const daysRem = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
     const authUser: AuthUser = {
+      id: matched.id,
       email: matched.email,
       name: matched.name,
       instituteName: matched.instituteName || 'Coaching Institute',
@@ -464,6 +479,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const daysRem = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
     const authUser: AuthUser = {
+      id: matched.id,
       email: matched.email,
       name: matched.name,
       instituteName: matched.instituteName || 'Coaching Institute',
@@ -683,6 +699,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   })();
 
   const createOrUpdateTest = (testToSave: MockTest) => {
+    removeDeletedTestId(testToSave.id);
+    const cleaned = cleanTestId(testToSave.id);
+    if (cleaned) removeDeletedTestId(cleaned);
+
     const existingIdx = tests.findIndex(t => t.id === testToSave.id);
     let updated: MockTest[];
     if (existingIdx >= 0) {

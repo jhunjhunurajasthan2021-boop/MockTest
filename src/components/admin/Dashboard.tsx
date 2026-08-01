@@ -125,20 +125,28 @@ export const Dashboard: React.FC<{
   const displayTests = tests.filter((t) => {
     if (currentUser?.isSuperAdmin) {
       if (selectedTeacherFilter === 'all') return true;
+      const filterLower = selectedTeacherFilter.toLowerCase();
+      const testTeacher = (t.teacherId || '').toLowerCase();
       return (
-        t.teacherId?.toLowerCase() === selectedTeacherFilter.toLowerCase() ||
-        (selectedTeacherFilter.toLowerCase() === 'teacher@school.edu' &&
-          (!t.teacherId || t.teacherId === 'teacher-admin-01'))
+        testTeacher === filterLower ||
+        (filterLower === 'teacher@school.edu' && (!t.teacherId || testTeacher === 'teacher-admin-01'))
       );
     }
     if (!currentUser) return true;
     const userEmail = (currentUser.email || '').toLowerCase();
     const userPasscode = (currentUser.accessPasscode || '').toLowerCase();
+    const userId = (currentUser.id || '').toLowerCase();
+    const userName = (currentUser.name || '').toLowerCase();
+    const userInst = (currentUser.instituteName || '').toLowerCase();
     const testTeacher = (t.teacherId || '').toLowerCase();
+    const testCoaching = (t.coachingName || '').toLowerCase();
 
     return (
       testTeacher === userEmail ||
       testTeacher === userPasscode ||
+      (userId && testTeacher === userId) ||
+      (userName && testTeacher === userName) ||
+      (userInst && testCoaching && testCoaching === userInst) ||
       (userEmail === 'teacher@school.edu' && (!t.teacherId || testTeacher === 'teacher-admin-01'))
     );
   });
