@@ -8,6 +8,66 @@ const TESTS_KEY = 'mock_tests_series_v1';
 const ATTEMPTS_KEY = 'mock_test_attempts_v1';
 const TEACHERS_KEY = 'mock_test_teachers_v1';
 const CONFIG_KEY = 'mock_test_platform_config_v1';
+const DELETED_TESTS_KEY = 'mock_test_deleted_ids_v1';
+const DELETED_TEACHERS_KEY = 'mock_test_deleted_teacher_ids_v1';
+
+export function getDeletedTestIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DELETED_TESTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function addDeletedTestId(id: string) {
+  if (!id) return;
+  try {
+    const list = getDeletedTestIds();
+    if (!list.includes(id)) {
+      list.push(id);
+      localStorage.setItem(DELETED_TESTS_KEY, JSON.stringify(list));
+    }
+  } catch (e) {}
+}
+
+export function removeDeletedTestId(id: string) {
+  if (!id) return;
+  try {
+    const list = getDeletedTestIds().filter((d) => d !== id);
+    localStorage.setItem(DELETED_TESTS_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+
+export function getDeletedTeacherIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DELETED_TEACHERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function addDeletedTeacherId(idOrEmail: string) {
+  if (!idOrEmail) return;
+  const target = idOrEmail.toLowerCase().trim();
+  try {
+    const list = getDeletedTeacherIds();
+    if (!list.includes(target)) {
+      list.push(target);
+      localStorage.setItem(DELETED_TEACHERS_KEY, JSON.stringify(list));
+    }
+  } catch (e) {}
+}
+
+export function removeDeletedTeacherId(idOrEmail: string) {
+  if (!idOrEmail) return;
+  const target = idOrEmail.toLowerCase().trim();
+  try {
+    const list = getDeletedTeacherIds().filter((d) => d !== target);
+    localStorage.setItem(DELETED_TEACHERS_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
 
 export const DEFAULT_PLATFORM_CONFIG: LandingPlatformConfig = {
   headlineText: 'Daily Mock Test Live Share With Direct Link To Students',
@@ -121,33 +181,44 @@ const INITIAL_TEACHERS: TeacherAccount[] = [
 export function getStoredTeachers(): TeacherAccount[] {
   try {
     const raw = localStorage.getItem(TEACHERS_KEY);
-    if (!raw) {
+    const deletedIds = getDeletedTeacherIds();
+    if (raw === null) {
+      const filteredInitial = INITIAL_TEACHERS.filter(
+        (t) => !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
+      );
       try {
-        localStorage.setItem(TEACHERS_KEY, JSON.stringify(INITIAL_TEACHERS));
+        localStorage.setItem(TEACHERS_KEY, JSON.stringify(filteredInitial));
       } catch (e) {}
-      return INITIAL_TEACHERS;
+      return filteredInitial;
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed;
+      return parsed.filter(
+        (t) => !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
+      );
     }
-    localStorage.setItem(TEACHERS_KEY, JSON.stringify(INITIAL_TEACHERS));
-    return INITIAL_TEACHERS;
+    return [];
   } catch (err) {
     console.error('Error reading teachers from storage:', err);
-    return INITIAL_TEACHERS;
+    return [];
   }
 }
 
 export function saveTeachers(teachers: TeacherAccount[]) {
   try {
-    localStorage.setItem(TEACHERS_KEY, JSON.stringify(teachers));
+    const deletedIds = getDeletedTeacherIds();
+    const cleanTeachers = teachers.filter(
+      (t) => !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
+    );
+    localStorage.setItem(TEACHERS_KEY, JSON.stringify(cleanTeachers));
   } catch (err) {
     console.error('Error saving teachers to storage:', err);
   }
 }
 
 export function createOrUpdateTeacher(teacher: TeacherAccount): TeacherAccount[] {
+  removeDeletedTeacherId(teacher.id);
+  removeDeletedTeacherId(teacher.email);
   const teachers = getStoredTeachers();
   const idx = teachers.findIndex((t) => t.id === teacher.id || t.email.toLowerCase() === teacher.email.toLowerCase());
   if (idx >= 0) {
@@ -160,7 +231,15 @@ export function createOrUpdateTeacher(teacher: TeacherAccount): TeacherAccount[]
 }
 
 export function deleteTeacher(id: string): TeacherAccount[] {
-  const teachers = getStoredTeachers().filter((t) => t.id !== id);
+  const currentTeachers = getStoredTeachers();
+  const toDelete = currentTeachers.find((t) => t.id === id || t.email.toLowerCase() === id.toLowerCase());
+  if (toDelete) {
+    addDeletedTeacherId(toDelete.id);
+    addDeletedTeacherId(toDelete.email);
+  } else {
+    addDeletedTeacherId(id);
+  }
+  const teachers = currentTeachers.filter((t) => t.id !== id && t.email.toLowerCase() !== id.toLowerCase());
   saveTeachers(teachers);
   return teachers;
 }
@@ -168,30 +247,30 @@ export function deleteTeacher(id: string): TeacherAccount[] {
 export function getStoredTests(): MockTest[] {
   try {
     const raw = localStorage.getItem(TESTS_KEY);
-    if (!raw) {
+    const deletedIds = getDeletedTestIds();
+    if (raw === null) {
+      const filteredInitial = SAMPLE_MOCK_TESTS.filter((t) => !deletedIds.includes(t.id));
       try {
-        localStorage.setItem(TESTS_KEY, JSON.stringify(SAMPLE_MOCK_TESTS));
+        localStorage.setItem(TESTS_KEY, JSON.stringify(filteredInitial));
       } catch (e) {}
-      return SAMPLE_MOCK_TESTS;
+      return filteredInitial;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((t) => !deletedIds.includes(t.id));
     }
-    // If array is empty, populate sample mock tests
-    try {
-      localStorage.setItem(TESTS_KEY, JSON.stringify(SAMPLE_MOCK_TESTS));
-    } catch (e) {}
-    return SAMPLE_MOCK_TESTS;
+    return [];
   } catch (err) {
     console.error('Error reading tests from storage:', err);
-    return SAMPLE_MOCK_TESTS;
+    return [];
   }
 }
 
 export function saveTests(tests: MockTest[]) {
   try {
-    localStorage.setItem(TESTS_KEY, JSON.stringify(tests));
+    const deletedIds = getDeletedTestIds();
+    const cleanTests = tests.filter((t) => !deletedIds.includes(t.id));
+    localStorage.setItem(TESTS_KEY, JSON.stringify(cleanTests));
   } catch (err) {
     console.error('Error saving tests to storage:', err);
   }
@@ -246,7 +325,8 @@ export function getTestById(testId: string): MockTest | undefined {
 }
 
 export function deleteTest(testId: string): MockTest[] {
-  const tests = getStoredTests().filter(t => t.id !== testId);
+  addDeletedTestId(testId);
+  const tests = getStoredTests().filter((t) => t.id !== testId);
   saveTests(tests);
   return tests;
 }

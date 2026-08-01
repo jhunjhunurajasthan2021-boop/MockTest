@@ -26,6 +26,9 @@ import {
   saveAttemptCloud,
   fetchAttemptsCloud,
   deleteTestCloud,
+  saveTeacherCloud,
+  fetchAllTeachersCloud,
+  deleteTeacherCloud,
 } from '../services/firestoreStorage';
 
 export type { AuthUser };
@@ -243,17 +246,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Sync cloud tests and attempts on mount
+  // Sync cloud tests, attempts, and teachers on mount
   useEffect(() => {
     fetchAllTestsCloud().then((cloudTests) => {
-      if (cloudTests && cloudTests.length > 0) {
+      if (cloudTests) {
         setTests(cloudTests);
       }
     });
 
     fetchAttemptsCloud().then((cloudAttempts) => {
-      if (cloudAttempts && cloudAttempts.length > 0) {
+      if (cloudAttempts) {
         setAttempts(cloudAttempts);
+      }
+    });
+
+    fetchAllTeachersCloud().then((cloudTeachers) => {
+      if (cloudTeachers) {
+        setTeachers(cloudTeachers);
       }
     });
   }, []);
@@ -588,6 +597,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updatedList = createOrUpdateTeacher(newTeacher);
     setTeachers(updatedList);
+    saveTeacherCloud(newTeacher);
 
     // If updating current teacher's account, also sync currentUser
     if (currentUser && currentUser.email.toLowerCase() === newTeacher.email.toLowerCase()) {
@@ -621,8 +631,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTeacherAccount = (teacherId: string) => {
+    const target = teachers.find((t) => t.id === teacherId);
     const updated = storageDeleteTeacher(teacherId);
     setTeachers(updated);
+    deleteTeacherCloud(teacherId, target?.email);
   };
 
   const setActiveTestId = (id: string | null) => {

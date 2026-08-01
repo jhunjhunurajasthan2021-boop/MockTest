@@ -5,7 +5,6 @@ import { TestRunner } from './TestRunner';
 import { TestResultView } from './TestResultView';
 import { StudentExitScreen } from './StudentExitScreen';
 import { CoachingBrandingHeader } from '../common/CoachingBrandingHeader';
-import { MockTestProLogo } from '../common/MockTestProLogo';
 import { cleanTestId } from '../../utils/cleanTestId';
 import {
   GraduationCap,
@@ -575,14 +574,8 @@ export const StudentPortal: React.FC = () => {
                 </a>
               </div>
             ) : (
-              <div className="hidden lg:block sticky top-20">
-                <MockTestProLogo
-                  logoUrl={coachingLogo}
-                  name={coachingName}
-                  tagline={coachingTagline || 'Official Online Mock Test Portal'}
-                  variant="hero"
-                />
-              </div>
+              /* When no left ad is enabled, leave left side space empty as requested */
+              null
             )}
           </div>
 

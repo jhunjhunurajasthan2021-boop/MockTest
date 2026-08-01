@@ -1,7 +1,19 @@
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { MockTest, TestAttempt, TeacherAccount } from '../types';
-import { saveTests, getStoredTests, saveAttempt as saveLocalAttempt, getStoredAttempts } from './storage';
+import {
+  saveTests,
+  getStoredTests,
+  saveAttempt as saveLocalAttempt,
+  getStoredAttempts,
+  getDeletedTestIds,
+  addDeletedTestId,
+  getDeletedTeacherIds,
+  addDeletedTeacherId,
+  getStoredTeachers,
+  saveTeachers,
+  deleteTeacher as storageDeleteTeacher,
+} from './storage';
 import { cleanTestId } from '../utils/cleanTestId';
 
 const TESTS_COLLECTION = 'tests';
@@ -39,6 +51,10 @@ export async function fetchTestCloud(testId: string): Promise<MockTest | null> {
   if (!testId) return null;
 
   const target = cleanTestId(testId) || testId;
+  const deletedIds = getDeletedTestIds();
+  if (deletedIds.includes(testId) || deletedIds.includes(target)) {
+    return null;
+  }
 
   // First check local storage / memory with flexible matching
   const localTests = getStoredTests();
@@ -69,11 +85,13 @@ export async function fetchTestCloud(testId: string): Promise<MockTest | null> {
 
       if (docSnap.exists()) {
         const cloudTest = docSnap.data() as MockTest;
-        const currentLocal = getStoredTests();
-        if (!currentLocal.some((t) => t.id === cloudTest.id)) {
-          saveTests([cloudTest, ...currentLocal]);
+        if (!deletedIds.includes(cloudTest.id) && !deletedIds.includes(cleanTestId(cloudTest.id))) {
+          const currentLocal = getStoredTests();
+          if (!currentLocal.some((t) => t.id === cloudTest.id)) {
+            saveTests([cloudTest, ...currentLocal]);
+          }
+          return cloudTest;
         }
-        return cloudTest;
       }
 
       // 2. Fallback: Query all tests collection in case doc ID format differs
@@ -86,6 +104,8 @@ export async function fetchTestCloud(testId: string): Promise<MockTest | null> {
           if (
             tData &&
             tData.id &&
+            !deletedIds.includes(tData.id) &&
+            !deletedIds.includes(cleanTestId(tData.id)) &&
             (tData.id === target ||
               tData.id === testId ||
               cleanTestId(tData.id) === target ||
@@ -114,6 +134,7 @@ export async function fetchTestCloud(testId: string): Promise<MockTest | null> {
 // Fetch all published tests from Firestore Cloud DB and merge with local storage
 export async function fetchAllTestsCloud(): Promise<MockTest[]> {
   const localTests = getStoredTests();
+  const deletedIds = getDeletedTestIds();
   try {
     if (db) {
       const collRef = collection(db, TESTS_COLLECTION);
@@ -121,25 +142,29 @@ export async function fetchAllTestsCloud(): Promise<MockTest[]> {
       const cloudTests: MockTest[] = [];
       snapshot.forEach((docSnap) => {
         if (docSnap.exists()) {
-          cloudTests.push(docSnap.data() as MockTest);
+          const tData = docSnap.data() as MockTest;
+          if (tData && tData.id && !deletedIds.includes(tData.id) && !deletedIds.includes(cleanTestId(tData.id))) {
+            cloudTests.push(tData);
+          }
         }
       });
 
-      if (cloudTests.length > 0) {
-        // Merge cloud tests with local tests
-        const mergedMap = new Map<string, MockTest>();
-        localTests.forEach((t) => mergedMap.set(t.id, t));
-        cloudTests.forEach((t) => mergedMap.set(t.id, t));
-        const mergedList = Array.from(mergedMap.values());
-        saveTests(mergedList);
-        return mergedList;
-      }
+      const mergedMap = new Map<string, MockTest>();
+      localTests.forEach((t) => {
+        if (!deletedIds.includes(t.id) && !deletedIds.includes(cleanTestId(t.id))) {
+          mergedMap.set(t.id, t);
+        }
+      });
+      cloudTests.forEach((t) => mergedMap.set(t.id, t));
+      const mergedList = Array.from(mergedMap.values());
+      saveTests(mergedList);
+      return mergedList;
     }
   } catch (err) {
     console.warn('[Cloud Storage] Error fetching all tests from Firestore:', err);
   }
 
-  return localTests;
+  return localTests.filter((t) => !deletedIds.includes(t.id));
 }
 
 // Save student attempt to Firestore Cloud DB
@@ -186,12 +211,82 @@ export async function fetchAttemptsCloud(testId?: string): Promise<TestAttempt[]
 
 // Delete test from Firestore Cloud DB
 export async function deleteTestCloud(testId: string): Promise<void> {
+  addDeletedTestId(testId);
+  const cleaned = cleanTestId(testId);
+  if (cleaned) addDeletedTestId(cleaned);
+
   try {
     if (db) {
       const docRef = doc(db, TESTS_COLLECTION, testId);
       await deleteDoc(docRef);
+      if (cleaned && cleaned !== testId) {
+        const docRefClean = doc(db, TESTS_COLLECTION, cleaned);
+        await deleteDoc(docRefClean);
+      }
     }
   } catch (err) {
     console.warn(`[Cloud Storage] Failed to delete test ${testId} from Firestore:`, err);
+  }
+}
+
+// Save or Update Teacher in Firestore
+export async function saveTeacherCloud(teacher: TeacherAccount): Promise<void> {
+  try {
+    if (db) {
+      const docRef = doc(db, TEACHERS_COLLECTION, teacher.id);
+      await setDoc(docRef, JSON.parse(JSON.stringify(teacher)), { merge: true });
+    }
+  } catch (err) {
+    console.warn('[Cloud Storage] Failed to save teacher to Firestore:', err);
+  }
+}
+
+// Fetch all teachers from Firestore
+export async function fetchAllTeachersCloud(): Promise<TeacherAccount[]> {
+  const localTeachers = getStoredTeachers();
+  try {
+    if (db) {
+      const collRef = collection(db, TEACHERS_COLLECTION);
+      const snapshot = await getDocs(collRef);
+      const cloudTeachers: TeacherAccount[] = [];
+      const deletedTeacherIds = getDeletedTeacherIds();
+      snapshot.forEach((docSnap) => {
+        if (docSnap.exists()) {
+          const t = docSnap.data() as TeacherAccount;
+          if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+            cloudTeachers.push(t);
+          }
+        }
+      });
+
+      const mergedMap = new Map<string, TeacherAccount>();
+      localTeachers.forEach((t) => {
+        if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+          mergedMap.set(t.id, t);
+        }
+      });
+      cloudTeachers.forEach((t) => mergedMap.set(t.id, t));
+      const mergedList = Array.from(mergedMap.values());
+      saveTeachers(mergedList);
+      return mergedList;
+    }
+  } catch (err) {
+    console.warn('[Cloud Storage] Error fetching all teachers from Firestore:', err);
+  }
+
+  return localTeachers;
+}
+
+// Delete teacher from Firestore Cloud DB
+export async function deleteTeacherCloud(teacherId: string, email?: string): Promise<void> {
+  try {
+    addDeletedTeacherId(teacherId);
+    if (email) addDeletedTeacherId(email);
+    if (db) {
+      const docRef = doc(db, TEACHERS_COLLECTION, teacherId);
+      await deleteDoc(docRef);
+    }
+  } catch (err) {
+    console.warn(`[Cloud Storage] Failed to delete teacher ${teacherId} from Firestore:`, err);
   }
 }
