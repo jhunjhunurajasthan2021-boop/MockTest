@@ -168,9 +168,18 @@ export const Dashboard: React.FC<{
 
   // Chart 1: Subject-wise Attempt Performance
   const subjectMap: Record<string, { total: number; sumPercent: number; count: number }> = {};
+  
+  // Seed subjectMap with subjects from actual created tests
+  displayTests.forEach((t) => {
+    const subj = t.subject?.trim() || 'General';
+    if (!subjectMap[subj]) {
+      subjectMap[subj] = { total: 0, sumPercent: 0, count: 0 };
+    }
+  });
+
   displayAttempts.forEach((att) => {
     const test = displayTests.find((t) => t.id === att.testId);
-    const subj = test?.subject || 'General';
+    const subj = test?.subject?.trim() || 'General';
     if (!subjectMap[subj]) {
       subjectMap[subj] = { total: 0, sumPercent: 0, count: 0 };
     }
@@ -180,25 +189,20 @@ export const Dashboard: React.FC<{
 
   const subjectChartData = Object.keys(subjectMap).map((subj) => ({
     subject: subj,
-    avgScore: Math.round(subjectMap[subj].sumPercent / subjectMap[subj].count),
+    avgScore: subjectMap[subj].count > 0 ? Math.round(subjectMap[subj].sumPercent / subjectMap[subj].count) : 0,
     attempts: subjectMap[subj].count,
   }));
-
-  if (subjectChartData.length === 0) {
-    subjectChartData.push(
-      { subject: 'Physics', avgScore: 78, attempts: 14 },
-      { subject: 'Chemistry', avgScore: 65, attempts: 18 },
-      { subject: 'Computer Science', avgScore: 82, attempts: 22 }
-    );
-  }
 
   // Chart 2: Pass vs Fail Ratio
   const passedCount = displayAttempts.filter((a) => a.passed).length;
   const failedCount = totalAttempts - passedCount;
-  const passFailData = [
-    { name: 'Passed', value: totalAttempts > 0 ? passedCount : 18, color: '#10B981' },
-    { name: 'Needs Improvement', value: totalAttempts > 0 ? failedCount : 6, color: '#EF4444' },
-  ];
+  const passFailData =
+    totalAttempts > 0
+      ? [
+          { name: 'Passed', value: passedCount, color: '#10B981' },
+          { name: 'Needs Improvement', value: failedCount, color: '#EF4444' },
+        ]
+      : [{ name: 'No Submissions', value: 1, color: '#E2E8F0' }];
 
   const getShareUrl = (testId: string) => {
     const cleaned = cleanTestId(testId) || testId;
@@ -434,18 +438,28 @@ export const Dashboard: React.FC<{
           </div>
 
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <BarChart data={subjectChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="subject" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
-                  formatter={(val: any) => [`${val}%`, 'Avg Score']}
-                />
-                <Bar dataKey="avgScore" fill="#3B82F6" radius={[6, 6, 0, 0]} barSize={36} />
-              </BarChart>
-            </ResponsiveContainer>
+            {subjectChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart data={subjectChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="subject" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
+                    formatter={(val: any) => [`${val}%`, 'Avg Score']}
+                  />
+                  <Bar dataKey="avgScore" fill="#3B82F6" radius={[6, 6, 0, 0]} barSize={36} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <BarChart2 className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-xs font-bold text-slate-700">No Subject Analytics Yet</p>
+                <p className="text-[11px] text-slate-500 max-w-xs mt-1 font-medium">
+                  Create mock tests and share them with students. Once tests are submitted, subject-wise performance graphs will appear here automatically.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -470,14 +484,16 @@ export const Dashboard: React.FC<{
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
-                  />
+                  {totalAttempts > 0 && (
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)' }}
+                    />
+                  )}
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-xl font-black text-slate-900">
-                  {displayAttempts.length > 0 ? displayAttempts.length : 24}
+                  {totalAttempts}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Attempts</span>
               </div>
@@ -489,7 +505,7 @@ export const Dashboard: React.FC<{
               <div key={d.name || `pf-${dIdx}`} className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
                 <span className="text-xs font-semibold text-slate-700">
-                  {d.name} ({d.value})
+                  {d.name} {totalAttempts > 0 ? `(${d.value})` : ''}
                 </span>
               </div>
             ))}
