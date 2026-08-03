@@ -254,6 +254,38 @@ export async function saveTeacherCloud(teacher: TeacherAccount): Promise<void> {
   }
 }
 
+// Helper to deduplicate teachers and track extra duplicate IDs for Firestore cleanup
+function processAndDeduplicateTeachers(rawTeachers: TeacherAccount[]): { cleanList: TeacherAccount[]; duplicateIdsToDelete: string[] } {
+  const mapByEmail = new Map<string, TeacherAccount>();
+  const duplicateIdsToDelete: string[] = [];
+
+  for (const t of rawTeachers) {
+    if (!t || !t.email) continue;
+    const emailKey = t.email.toLowerCase().trim();
+    if (!mapByEmail.has(emailKey)) {
+      mapByEmail.set(emailKey, t);
+    } else {
+      const existing = mapByEmail.get(emailKey)!;
+      const existingExpiry = new Date(existing.expiryDate || 0).getTime();
+      const currentExpiry = new Date(t.expiryDate || 0).getTime();
+
+      if (currentExpiry > existingExpiry) {
+        if (existing.id && existing.id !== t.id) {
+          duplicateIdsToDelete.push(existing.id);
+        }
+        mapByEmail.set(emailKey, { ...existing, ...t, id: existing.id || t.id });
+      } else {
+        if (t.id && t.id !== existing.id) {
+          duplicateIdsToDelete.push(t.id);
+        }
+        mapByEmail.set(emailKey, { ...t, ...existing });
+      }
+    }
+  }
+
+  return { cleanList: Array.from(mapByEmail.values()), duplicateIdsToDelete };
+}
+
 // Fetch all teachers from Firestore
 export async function fetchAllTeachersCloud(): Promise<TeacherAccount[]> {
   const localTeachers = getStoredTeachers();
@@ -261,27 +293,37 @@ export async function fetchAllTeachersCloud(): Promise<TeacherAccount[]> {
     if (db) {
       const collRef = collection(db, TEACHERS_COLLECTION);
       const snapshot = await getDocs(collRef);
-      const cloudTeachers: TeacherAccount[] = [];
+      const rawTeachers: TeacherAccount[] = [];
       const deletedTeacherIds = getDeletedTeacherIds();
+
       snapshot.forEach((docSnap) => {
         if (docSnap.exists()) {
           const t = docSnap.data() as TeacherAccount;
-          if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
-            cloudTeachers.push(t);
+          if (t && t.id && t.email && !deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+            rawTeachers.push(t);
           }
         }
       });
 
-      const mergedMap = new Map<string, TeacherAccount>();
       localTeachers.forEach((t) => {
-        if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
-          mergedMap.set(t.id, t);
+        if (t && t.id && t.email && !deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+          rawTeachers.push(t);
         }
       });
-      cloudTeachers.forEach((t) => mergedMap.set(t.id, t));
-      const mergedList = Array.from(mergedMap.values());
-      saveTeachers(mergedList);
-      return mergedList;
+
+      const { cleanList, duplicateIdsToDelete } = processAndDeduplicateTeachers(rawTeachers);
+
+      // Async cleanup duplicate documents from cloud
+      if (duplicateIdsToDelete.length > 0 && db) {
+        duplicateIdsToDelete.forEach((dupId) => {
+          try {
+            deleteDoc(doc(db, TEACHERS_COLLECTION, dupId));
+          } catch (e) {}
+        });
+      }
+
+      saveTeachers(cleanList);
+      return cleanList;
     }
   } catch (err) {
     console.warn('[Cloud Storage] Error fetching all teachers from Firestore:', err);
@@ -395,28 +437,35 @@ export function subscribeTeachersCloud(onUpdate: (teachers: TeacherAccount[]) =>
       collRef,
       (snapshot) => {
         const deletedTeacherIds = getDeletedTeacherIds();
-        const cloudTeachers: TeacherAccount[] = [];
+        const rawTeachers: TeacherAccount[] = [];
         snapshot.forEach((docSnap) => {
           if (docSnap.exists()) {
             const t = docSnap.data() as TeacherAccount;
-            if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
-              cloudTeachers.push(t);
+            if (t && t.id && t.email && !deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+              rawTeachers.push(t);
             }
           }
         });
 
         const localTeachers = getStoredTeachers();
-        const mergedMap = new Map<string, TeacherAccount>();
         localTeachers.forEach((t) => {
-          if (!deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
-            mergedMap.set(t.id, t);
+          if (t && t.id && t.email && !deletedTeacherIds.includes(t.id.toLowerCase()) && !deletedTeacherIds.includes(t.email.toLowerCase())) {
+            rawTeachers.push(t);
           }
         });
-        cloudTeachers.forEach((t) => mergedMap.set(t.id, t));
 
-        const mergedList = Array.from(mergedMap.values());
-        saveTeachers(mergedList);
-        onUpdate(mergedList);
+        const { cleanList, duplicateIdsToDelete } = processAndDeduplicateTeachers(rawTeachers);
+
+        if (duplicateIdsToDelete.length > 0 && db) {
+          duplicateIdsToDelete.forEach((dupId) => {
+            try {
+              deleteDoc(doc(db, TEACHERS_COLLECTION, dupId));
+            } catch (e) {}
+          });
+        }
+
+        saveTeachers(cleanList);
+        onUpdate(cleanList);
       },
       (error) => {
         console.warn('[Cloud Storage] Realtime teachers listener error:', error);

@@ -588,16 +588,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const passcode = `TCH-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const cleanEmail = data.email.toLowerCase().trim();
-    const existingTeachers = getStoredTeachers();
-    const existing = existingTeachers.find(
-      (t) => (data.id && t.id === data.id) || t.email.toLowerCase().trim() === cleanEmail
+    const cleanPhone = (data.phone || '').trim();
+
+    // Find any existing teacher matching ID, Email, or Phone in both state and local storage
+    const allKnown = [...teachers, ...getStoredTeachers()];
+    const existing = allKnown.find(
+      (t) =>
+        (data.id && t.id === data.id) ||
+        (cleanEmail && t.email.toLowerCase().trim() === cleanEmail) ||
+        (cleanPhone && t.phone && t.phone.trim() === cleanPhone)
     );
 
+    // If an existing teacher had a different ID (e.g. duplicate doc in cloud), mark old duplicate for deletion
+    if (existing && data.id && data.id !== existing.id) {
+      deleteTeacherCloud(data.id, cleanEmail);
+    }
+
     const newTeacher: TeacherAccount = {
-      id: data.id || existing?.id || `tch-${Date.now()}`,
+      id: existing?.id || data.id || `tch-${Date.now()}`,
       name: data.name || existing?.name || '',
       email: cleanEmail,
-      phone: data.phone.trim() || existing?.phone || '',
+      phone: cleanPhone || existing?.phone || '',
       instituteName: data.instituteName !== undefined ? data.instituteName : existing?.instituteName || '',
       coachingLogoUrl: data.coachingLogoUrl !== undefined ? data.coachingLogoUrl : existing?.coachingLogoUrl || '',
       coachingTagline: data.coachingTagline !== undefined ? data.coachingTagline : existing?.coachingTagline || '',
@@ -647,10 +658,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTeacherAccount = (teacherId: string) => {
-    const target = teachers.find((t) => t.id === teacherId);
+    const target = teachers.find(
+      (t) => t.id === teacherId || t.email.toLowerCase() === teacherId.toLowerCase()
+    );
+    const targetEmail = target?.email || (teacherId.includes('@') ? teacherId : '');
+
     const updated = storageDeleteTeacher(teacherId);
     setTeachers(updated);
-    deleteTeacherCloud(teacherId, target?.email);
+
+    deleteTeacherCloud(teacherId, targetEmail);
+    if (target?.id && target.id !== teacherId) {
+      deleteTeacherCloud(target.id, targetEmail);
+    }
   };
 
   const setActiveTestId = (id: string | null) => {

@@ -163,6 +163,27 @@ export function savePlatformConfig(config: LandingPlatformConfig): LandingPlatfo
 
 const INITIAL_TEACHERS: TeacherAccount[] = [];
 
+export function deduplicateTeachers(teachers: TeacherAccount[]): TeacherAccount[] {
+  const map = new Map<string, TeacherAccount>();
+  for (const t of teachers) {
+    if (!t || !t.email) continue;
+    const emailKey = t.email.toLowerCase().trim();
+    if (!map.has(emailKey)) {
+      map.set(emailKey, t);
+    } else {
+      const existing = map.get(emailKey)!;
+      const existingExpiry = new Date(existing.expiryDate || 0).getTime();
+      const currentExpiry = new Date(t.expiryDate || 0).getTime();
+      if (currentExpiry > existingExpiry) {
+        map.set(emailKey, { ...existing, ...t, id: existing.id || t.id });
+      } else {
+        map.set(emailKey, { ...t, ...existing });
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
 export function getStoredTeachers(): TeacherAccount[] {
   try {
     const raw = localStorage.getItem(TEACHERS_KEY);
@@ -175,9 +196,10 @@ export function getStoredTeachers(): TeacherAccount[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed.filter(
-        (t) => !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
+      const filtered = parsed.filter(
+        (t) => t && t.id && t.email && !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
       );
+      return deduplicateTeachers(filtered);
     }
     return [];
   } catch (err) {
@@ -190,9 +212,10 @@ export function saveTeachers(teachers: TeacherAccount[]) {
   try {
     const deletedIds = getDeletedTeacherIds();
     const cleanTeachers = teachers.filter(
-      (t) => !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
+      (t) => t && t.id && t.email && !deletedIds.includes(t.id.toLowerCase()) && !deletedIds.includes(t.email.toLowerCase())
     );
-    localStorage.setItem(TEACHERS_KEY, JSON.stringify(cleanTeachers));
+    const deduplicated = deduplicateTeachers(cleanTeachers);
+    localStorage.setItem(TEACHERS_KEY, JSON.stringify(deduplicated));
   } catch (err) {
     console.error('Error saving teachers to storage:', err);
   }
@@ -201,15 +224,15 @@ export function saveTeachers(teachers: TeacherAccount[]) {
 export function createOrUpdateTeacher(teacher: TeacherAccount): TeacherAccount[] {
   removeDeletedTeacherId(teacher.id);
   removeDeletedTeacherId(teacher.email);
-  const teachers = getStoredTeachers();
-  const idx = teachers.findIndex((t) => t.id === teacher.id || t.email.toLowerCase() === teacher.email.toLowerCase());
-  if (idx >= 0) {
-    teachers[idx] = teacher;
-  } else {
-    teachers.unshift(teacher);
-  }
-  saveTeachers(teachers);
-  return teachers;
+  const existingTeachers = getStoredTeachers();
+  const cleanEmail = teacher.email.toLowerCase().trim();
+  const filtered = existingTeachers.filter(
+    (t) => t.id !== teacher.id && t.email.toLowerCase().trim() !== cleanEmail
+  );
+  filtered.unshift(teacher);
+  const deduplicated = deduplicateTeachers(filtered);
+  saveTeachers(deduplicated);
+  return deduplicated;
 }
 
 export function deleteTeacher(id: string): TeacherAccount[] {
