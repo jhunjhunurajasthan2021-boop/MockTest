@@ -62,7 +62,23 @@ export const PdfImportModal: React.FC<PdfImportModalProps> = ({
             } catch (err) {}
           }
 
-          let promptToSend = `Read the attached document file "${file.name}" carefully and extract all test questions, options, correct answer keys, and detailed solutions verbatim with ZERO modifications.`;
+          let promptToSend = `Read the attached document/PDF file "${file.name}" carefully and extract all test questions, option choices, correct answer keys, and detailed solutions verbatim.
+
+CRITICAL INSTRUCTIONS FOR CLASSIFYING & FORMATTING QUESTIONS:
+1. SINGLE QUESTIONS vs DIRECTION / SET QUESTIONS:
+   - Identify whether each question is a standalone single question (e.g., Q13) OR part of a set under a Direction block (e.g. Direction (20-24), Direction (14-16), Passage, Study the following information).
+   - FOR DIRECTION / SET QUESTIONS (e.g. Q20 to Q24): You MUST include the full Direction / Passage text at the beginning of EVERY question in that set (Q20, Q21, Q22, Q23, Q24). Format question as:
+     "Direction (20-24): [Full Direction / Passage / Table / Rules text]\n\nQuestion [Q Number]: [Actual question text]"
+     Do NOT leave out the direction text for Q21, Q22, Q23, Q24 even if it was printed only once at the top of Q20 in the document!
+   - FOR STANDALONE SINGLE QUESTIONS:
+     Keep the question text clean without any direction header.
+
+2. DETAILED SOLUTIONS & EXPLANATIONS:
+   - For Direction / Puzzle / Arrangement questions (e.g. Direction 14-16 with a seating arrangement diagram/solution), include the full arrangement diagram/solution along with the specific question's answer reasoning in the "explanation" field for ALL questions in that range (Q14, Q15, Q16).
+
+3. CORRECT ANSWER KEYS & OPTIONS:
+   - Detect correct answer keys verbatim from answer sheets, solution keys, or bold choices (e.g. "14) Answer: E" -> correctOption 4, "15) Answer: B" -> correctOption 1, "Answer: C" -> correctOption 2).
+   - Extract ALL option choices verbatim (A, B, C, D, E). Support 4 or 5 options accurately. Do not include option labels "A.", "B." inside option text strings.`;
           if (rawText) {
             promptToSend += `\n\n[FILE TEXT CONTENT]\n${rawText.slice(0, 30000)}`;
           }
@@ -125,6 +141,18 @@ export const PdfImportModal: React.FC<PdfImportModalProps> = ({
           const targetSec = sections.find((s) => s.id === selectedSectionId);
 
           const formattedQs: Omit<Question, 'id'>[] = rawQs.map((q: any, idx: number) => {
+            let qText = q.question || q.questionText || q.text || `Question ${idx + 1}`;
+            const directionPrefix = q.direction || q.passage || q.groupDirection;
+            if (directionPrefix && typeof directionPrefix === 'string' && !qText.toLowerCase().includes(directionPrefix.toLowerCase().slice(0, 15))) {
+              qText = `${directionPrefix}\n\n${qText}`;
+            }
+
+            let qExpl = q.explanation || q.solution || '';
+            const dirExpl = q.directionExplanation || q.directionSolution || q.groupSolution;
+            if (dirExpl && typeof dirExpl === 'string' && !qExpl.toLowerCase().includes(dirExpl.toLowerCase().slice(0, 15))) {
+              qExpl = `${dirExpl}\n\n${qExpl}`;
+            }
+
             const rawOpts: string[] = Array.isArray(q.options) && q.options.length > 0
               ? q.options.map((opt: any) => String(opt).trim())
               : ['Option A', 'Option B', 'Option C', 'Option D'];
@@ -142,9 +170,9 @@ export const PdfImportModal: React.FC<PdfImportModalProps> = ({
             }));
 
             return {
-              text: q.question || q.questionText || q.text || `Question ${idx + 1}`,
+              text: qText,
               options,
-              explanation: q.explanation || q.solution || '',
+              explanation: qExpl,
               sectionId: selectedSectionId || undefined,
               subject: targetSec ? targetSec.name : parsed.subject || 'General',
               positiveMarks: targetSec ? targetSec.positiveMarks : 2,

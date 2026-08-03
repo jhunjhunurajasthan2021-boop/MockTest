@@ -270,17 +270,41 @@ export const AIAgentPanel: React.FC = () => {
       instructions: parsedTest.instructions || 'All questions are compulsory.',
       isPublished: true,
       questions: Array.isArray(parsedTest.questions)
-        ? parsedTest.questions.map((q: any, idx: number) => ({
-            id: `extracted-q-${Date.now()}-${idx}`,
-            question: q.question || q.questionText || `Question ${idx + 1}`,
-            options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['A', 'B', 'C', 'D'],
-            correctOption: typeof q.correctOption === 'number' ? q.correctOption : 0,
-            explanation: q.explanation || '',
-            subject: parsedTest.subject || 'General',
-            positiveMarks: Number(parsedTest.marksPerQuestion) || 2,
-            negativeMarks: Number(parsedTest.negativeMarks) || 0.5,
-            type: 'single_choice',
-          }))
+        ? parsedTest.questions.map((q: any, idx: number) => {
+            let qText = q.question || q.questionText || q.text || `Question ${idx + 1}`;
+            const dirPrefix = q.direction || q.passage || q.groupDirection;
+            if (dirPrefix && typeof dirPrefix === 'string' && !qText.toLowerCase().includes(dirPrefix.toLowerCase().slice(0, 15))) {
+              qText = `${dirPrefix}\n\n${qText}`;
+            }
+
+            let qExpl = q.explanation || q.solution || '';
+            const dirExpl = q.directionExplanation || q.directionSolution || q.groupSolution;
+            if (dirExpl && typeof dirExpl === 'string' && !qExpl.toLowerCase().includes(dirExpl.toLowerCase().slice(0, 15))) {
+              qExpl = `${dirExpl}\n\n${qExpl}`;
+            }
+
+            const rawOpts = Array.isArray(q.options) && q.options.length > 0 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'];
+            const correctIndex = typeof q.correctOption === 'number' ? q.correctOption : typeof q.answer === 'number' ? q.answer : 0;
+
+            const options = rawOpts.map((optText: any, oIdx: number) => ({
+              id: `opt-${oIdx + 1}`,
+              text: String(optText).trim(),
+              isCorrect: oIdx === correctIndex,
+            }));
+
+            return {
+              id: `extracted-q-${Date.now()}-${idx}`,
+              question: qText,
+              text: qText,
+              options,
+              correctOption: correctIndex,
+              explanation: qExpl,
+              subject: parsedTest.subject || 'General',
+              positiveMarks: Number(parsedTest.marksPerQuestion) || 2,
+              negativeMarks: Number(parsedTest.negativeMarks) || 0.5,
+              type: 'single_choice',
+            };
+          })
         : [],
     });
 
@@ -319,14 +343,30 @@ export const AIAgentPanel: React.FC = () => {
 
       const parsed = JSON.parse(strToParse);
 
-      // Handle Array of questions
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const questions = parsed.map((item: any, idx: number) => ({
-          question: item.question || item.questionText || item.q || item.title || `Question ${idx + 1}`,
+      const formatQuestionItem = (item: any, idx: number) => {
+        let qText = item.question || item.questionText || item.q || item.title || `Question ${idx + 1}`;
+        const dirPrefix = item.direction || item.passage || item.groupDirection;
+        if (dirPrefix && typeof dirPrefix === 'string' && !qText.toLowerCase().includes(dirPrefix.toLowerCase().slice(0, 15))) {
+          qText = `${dirPrefix}\n\n${qText}`;
+        }
+
+        let qExpl = item.explanation || item.solution || item.exp || '';
+        const dirExpl = item.directionExplanation || item.directionSolution || item.groupSolution;
+        if (dirExpl && typeof dirExpl === 'string' && !qExpl.toLowerCase().includes(dirExpl.toLowerCase().slice(0, 15))) {
+          qExpl = `${dirExpl}\n\n${qExpl}`;
+        }
+
+        return {
+          question: qText,
           options: Array.isArray(item.options) ? item.options : Array.isArray(item.choices) ? item.choices : ['Option A', 'Option B', 'Option C', 'Option D'],
           correctOption: typeof item.correctOption === 'number' ? item.correctOption : typeof item.answer === 'number' ? item.answer : 0,
-          explanation: item.explanation || item.solution || item.exp || '',
-        }));
+          explanation: qExpl,
+        };
+      };
+
+      // Handle Array of questions
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const questions = parsed.map(formatQuestionItem);
         return {
           title: 'Extracted Verbatim Mock Test',
           subject: 'General',
@@ -345,12 +385,7 @@ export const AIAgentPanel: React.FC = () => {
           parsed.testQuestions;
 
         if (Array.isArray(rawQs) && rawQs.length > 0) {
-          const questions = rawQs.map((item: any, idx: number) => ({
-            question: item.question || item.questionText || item.q || item.title || `Question ${idx + 1}`,
-            options: Array.isArray(item.options) ? item.options : Array.isArray(item.choices) ? item.choices : ['Option A', 'Option B', 'Option C', 'Option D'],
-            correctOption: typeof item.correctOption === 'number' ? item.correctOption : typeof item.answer === 'number' ? item.answer : 0,
-            explanation: item.explanation || item.solution || item.exp || '',
-          }));
+          const questions = rawQs.map(formatQuestionItem);
 
           return {
             title: parsed.title || parsed.testTitle || parsed.name || 'Extracted Verbatim Mock Test',
@@ -667,9 +702,13 @@ Return ONLY a valid JSON object matching this TypeScript structure:
       }
 
       promptToSend += `\n\nCRITICAL MANDATE FOR FILE EXTRACTED CONTENT:
-1. Extract ALL questions, options, correct answer keys, and detailed explanations/solutions EXACTLY AS WRITTEN in the provided document.
-2. ABSOLUTELY ZERO CONTENT ALTERATIONS OR PARAPHRASING: Do NOT rewrite, clean up, paraphrase, or edit any words, numbers, equations, spelling, or structure in the question text, option choices, or explanations. Keep the exact text verbatim.
-3. Return the extracted mock test formatted inside a \`\`\`json ... \`\`\` block matching the test schema so the user can save it with 1 click.`;
+1. SINGLE QUESTIONS vs DIRECTION / SET QUESTIONS:
+   - For standalone single questions (e.g. Q13), extract as clean single questions without any direction prefix.
+   - For direction / set questions (e.g. Direction 20-24, Direction 14-16), prepend the full Direction / Passage text at the beginning of EVERY question in that set (e.g. Q20, Q21, Q22, Q23, Q24). Format: "Direction (20-24): [Full Direction / Passage text]\n\n[Question text]".
+   - For detailed solutions of direction questions (e.g. Direction 14-16 seating arrangement diagram/solution), include the full arrangement diagram/solution in the "explanation" field for ALL questions in that range (Q14, Q15, Q16).
+2. Extract ALL questions, options (including 5-option choices A to E), correct answer keys (e.g., "14) Answer: E" -> correctOption 4, "15) Answer: B" -> correctOption 1), and detailed explanations verbatim.
+3. ABSOLUTELY ZERO CONTENT ALTERATIONS OR PARAPHRASING. Keep all words verbatim.
+4. Return the extracted mock test formatted inside a \`\`\`json ... \`\`\` block matching the test schema so the user can save it with 1 click.`;
 
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
