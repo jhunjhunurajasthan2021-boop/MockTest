@@ -30,7 +30,14 @@ async function startServer() {
         return res.status(400).json({ error: 'Prompt string is required.' });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
 
       const defaultSystemInstruction =
         'You are the Senior Super Admin AI Agent & Automated System Diagnostic Expert for MockTest Pro (an Online Test Series Platform for Teachers, Coaching Institutes, and Students in India). ' +
@@ -93,7 +100,7 @@ ${prompt}
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: contentsInput,
         config: {
           systemInstruction: systemInstruction || defaultSystemInstruction,
