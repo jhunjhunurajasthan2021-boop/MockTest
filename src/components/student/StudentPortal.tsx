@@ -85,6 +85,23 @@ export const StudentPortal: React.FC = () => {
     const validTargetId = cleanTestId(activeTestId);
 
     if (validTargetId) {
+      const targetedInBase = baseTests.find((t) => {
+        if (!t || !t.id) return false;
+        const cId = cleanTestId(t.id);
+        return (
+          t.id === validTargetId ||
+          cId === validTargetId ||
+          t.id.toLowerCase() === validTargetId.toLowerCase() ||
+          (validTargetId.length > 5 && t.id.includes(validTargetId)) ||
+          (t.id.length > 5 && validTargetId.includes(t.id))
+        );
+      });
+
+      if (targetedInBase) {
+        // Automatically activate this test
+        setTimeout(() => setActiveTestId(targetedInBase.id), 0);
+      }
+
       const targeted = publishedTests.filter((t) => {
         if (!t || !t.id) return false;
         const cId = cleanTestId(t.id);

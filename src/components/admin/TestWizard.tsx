@@ -4,6 +4,7 @@ import { MockTest, Question, TestSettings, PromoAdConfig, TestType, TestSection 
 import { ManualQuestionForm } from './ManualQuestionForm';
 import { WordImportModal } from './WordImportModal';
 import { ExcelImportModal } from './ExcelImportModal';
+import { PdfImportModal } from './PdfImportModal';
 import { FormattedText } from '../common/FormattedText';
 import { downloadSampleDocxFile } from '../../utils/sampleDocxGenerator';
 import { CountdownTimer } from '../common/CountdownTimer';
@@ -154,6 +155,7 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
   const [showManualForm, setShowManualForm] = useState(false);
   const [showWordModal, setShowWordModal] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [activeSectionFilter, setActiveSectionFilter] = useState<string>('all');
 
   // Section Management Handlers
@@ -1342,6 +1344,14 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
 
                   <button
                     type="button"
+                    onClick={() => setShowPdfModal(true)}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-purple-200" /> AI PDF / Doc Import
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setShowWordModal(true)}
                     className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-xs transition"
                   >
@@ -1590,6 +1600,14 @@ export const TestWizard: React.FC<TestWizardProps> = ({ initialTest, onClose }) 
         sections={sections}
         defaultSectionId={activeSectionFilter !== 'all' ? activeSectionFilter : undefined}
         onClose={() => setShowWordModal(false)}
+        onImportQuestions={handleBulkImport}
+      />
+
+      <PdfImportModal
+        isOpen={showPdfModal}
+        sections={sections}
+        defaultSectionId={activeSectionFilter !== 'all' ? activeSectionFilter : undefined}
+        onClose={() => setShowPdfModal(false)}
         onImportQuestions={handleBulkImport}
       />
 

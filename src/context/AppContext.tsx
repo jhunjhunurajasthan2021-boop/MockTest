@@ -205,20 +205,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const cleanedId = cleanTestId(rawTarget);
 
         if (cleanedId) {
-          setIsFetchingActiveTest(true);
+          const allStored = getStoredTests();
+          const foundLocal =
+            tests.find((t) => t.id === cleanedId || cleanTestId(t.id) === cleanedId) ||
+            allStored.find((t) => t.id === cleanedId || cleanTestId(t.id) === cleanedId);
+
           setActiveTestIdState(cleanedId);
           setMode('student');
+
+          if (foundLocal) {
+            setIsFetchingActiveTest(false);
+          } else {
+            setIsFetchingActiveTest(true);
+          }
+
           fetchTestCloud(cleanedId)
             .then((fetched) => {
               if (fetched) {
                 setTests((prev) => {
-                  const existingIdx = prev.findIndex((t) => t.id === fetched.id);
+                  const existingIdx = prev.findIndex((t) => t.id === fetched.id || cleanTestId(t.id) === cleanTestId(fetched.id));
                   if (existingIdx >= 0) {
                     const updated = [...prev];
                     updated[existingIdx] = fetched;
+                    saveTests(updated);
                     return updated;
                   }
-                  return [fetched, ...prev];
+                  const updated = [fetched, ...prev];
+                  saveTests(updated);
+                  return updated;
                 });
               }
             })
@@ -722,16 +736,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleaned = cleanTestId(testToSave.id);
     if (cleaned) removeDeletedTestId(cleaned);
 
-    const existingIdx = tests.findIndex(t => t.id === testToSave.id);
+    const preparedTest: MockTest = {
+      ...testToSave,
+      isPublished: testToSave.isPublished !== undefined ? testToSave.isPublished : true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const existingIdx = tests.findIndex((t) => t.id === preparedTest.id || cleanTestId(t.id) === cleanTestId(preparedTest.id));
     let updated: MockTest[];
     if (existingIdx >= 0) {
       updated = [...tests];
-      updated[existingIdx] = { ...testToSave, updatedAt: new Date().toISOString() };
+      updated[existingIdx] = preparedTest;
     } else {
-      updated = [testToSave, ...tests];
+      updated = [preparedTest, ...tests];
     }
     setTests(updated);
-    saveTestCloud(testToSave);
+    saveTests(updated);
+    saveTestCloud(preparedTest);
   };
 
   const deleteTestHandler = (testId: string) => {
