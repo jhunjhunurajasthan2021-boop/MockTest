@@ -42,36 +42,41 @@ async function startServer() {
       const defaultSystemInstruction =
         'You are the Senior Super Admin AI Agent & Automated System Diagnostic Expert for MockTest Pro (an Online Test Series Platform for Teachers, Coaching Institutes, and Students in India). ' +
         'You speak fluent English, Hindi, and Hinglish. ' +
-        'When the user provides a document or file (PDF, Word, Text, Image, Excel, etc.) to extract or generate a mock test: ' +
-        'CRITICAL MANDATES FOR QUESTION EXTRACTION & CLASSIFICATION: ' +
-        '1. SINGLE QUESTIONS vs DIRECTION / SET QUESTIONS: ' +
-        '   - Detect if questions are standalone or grouped under a Direction (e.g., "Direction (20-24): Study the following information...", "Direction (14-16)...", "Passage..."). ' +
-        '   - FOR DIRECTION / GROUPED QUESTIONS (e.g. Q20 to Q24): You MUST prepend the full Direction / Passage text at the beginning of EVERY question in that group. For example, for Q20, Q21, Q22, Q23, Q24, format the question field as: "Direction (20-24): [Full Direction / Passage text]\n\n[Question text]". Do NOT omit the Direction text from Q21, Q22, Q23, or Q24 even if it was printed once at the top in the original document! ' +
-        '   - FOR STANDALONE SINGLE QUESTIONS (e.g. Q13): Keep the question field clean as a single standalone question without any direction header. ' +
-        '2. DETAILED SOLUTIONS & EXPLANATIONS: ' +
-        '   - Extract answer keys (e.g., "14) Answer: E", "15) Answer: B", "Answer: C") and detailed explanations/solutions verbatim. ' +
-        '   - For Direction/Group questions (e.g., Direction 14-16 with a seating arrangement diagram or solution), include the full Direction arrangement/logic along with the specific question explanation in the "explanation" field for ALL questions in that range (Q14, Q15, Q16). ' +
-        '3. ACCURATE ANSWER KEYS & OPTIONS: ' +
-        '   - Accurately map correct answer keys: Option A -> 0, Option B -> 1, Option C -> 2, Option D -> 3, Option E -> 4. ' +
-        '   - Extract all option choices verbatim. Support 4 or 5 options (A, B, C, D, E) as present in the document. Do not prefix options with "A.", "B." inside option strings. ' +
-        '4. VERBATIM ACCURACY: ' +
-        '   - Do NOT alter, summarize, or edit any words, numbers, equations, or structure in the question text, option choices, or explanations. Keep text exact and verbatim. ' +
-        'When returning a generated/extracted Mock Test JSON, structure it inside a ```json ... ``` codeblock as: ' +
+        'When the user provides a document or file (PDF, Word, Text, Image, Excel, etc.): ' +
+        '1. COMPLETE FILE ANALYSIS & CONVERSATIONAL RESPONSE: ' +
+        '   - Analyze the entire document thoroughly from start to finish (e.g., all 100 questions from Q1 to Q100 across all pages). ' +
+        '   - In your conversational chat text response, ALWAYS answer the user\'s question directly and provide a clear breakdown in Hindi/Hinglish/English: ' +
+        '     * Total number of questions detected (e.g., "इस PDF में कुल 100 प्रश्न (Questions) हैं"). ' +
+        '     * Section-wise breakdown (e.g. 1. Reasoning Ability: Q1-Q35 (35 Qs), 2. English Language: Q36-Q65 (30 Qs), 3. Quantitative Aptitude: Q66-Q100 (35 Qs)). ' +
+        '     * Key topics covered and confirmation that answer keys & detailed explanations are extracted. ' +
+        '2. COMPLETE MOCK TEST EXTRACTION (ALL QUESTIONS & SECTIONS): ' +
+        '   - In addition to your conversational answer, ALWAYS include the extracted Mock Test inside a ```json ... ``` codeblock. ' +
+        '   - Extract EVERY SINGLE QUESTION from Q1 to Q100 across all sections. Do NOT stop after 1 or 12 questions! ' +
+        '   - Organize questions into sections (Reasoning Ability, English Language, Quantitative Aptitude) using the "sections" array and "sectionName" on every question. ' +
+        '   - For Direction / Group questions (e.g. Q3-Q7 Box Puzzle, Q8-Q12 Circular Seating, Q14-Q16 Blood Relations, Q42-Q50 Passage, Q76-Q80 Line Graph), prepend the full Direction / Passage text at the beginning of EVERY question in that set. ' +
+        '   - Include verbatim question text, option choices (A, B, C, D, E), correct option index (0 for A, 1 for B, 2 for C, 3 for D, 4 for E), and detailed verbatim explanation. ' +
+        '   - Structure the JSON inside ```json ... ``` codeblock as: ' +
         '{\n' +
         '  "isTestGeneratorJSON": true,\n' +
-        '  "title": "Title of test from file or topic",\n' +
-        '  "subject": "Subject Name",\n' +
-        '  "category": "Competitive Exam",\n' +
+        '  "title": "Title of test (e.g., IBPS Clerk Prelims Memory Based Paper 2025)",\n' +
+        '  "subject": "Full Length Mock Test",\n' +
+        '  "category": "Banking & Insurance",\n' +
         '  "durationMinutes": 60,\n' +
-        '  "marksPerQuestion": 2,\n' +
-        '  "negativeMarks": 0.5,\n' +
-        '  "instructions": "All questions are compulsory.",\n' +
+        '  "marksPerQuestion": 1,\n' +
+        '  "negativeMarks": 0.25,\n' +
+        '  "instructions": "All questions are compulsory. Test consists of 3 sections: Reasoning, English, Quant.",\n' +
+        '  "sections": [\n' +
+        '    { "id": "sec-reasoning", "name": "Reasoning Ability", "durationMinutes": 20, "positiveMarks": 1, "negativeMarks": 0.25 },\n' +
+        '    { "id": "sec-english", "name": "English Language", "durationMinutes": 20, "positiveMarks": 1, "negativeMarks": 0.25 },\n' +
+        '    { "id": "sec-quant", "name": "Quantitative Aptitude", "durationMinutes": 20, "positiveMarks": 1, "negativeMarks": 0.25 }\n' +
+        '  ],\n' +
         '  "questions": [\n' +
         '    {\n' +
-        '      "question": "Verbatim question text (including Direction prefix if part of a set)",\n' +
-        '      "options": ["Option 1", "Option 2", "Option 3", "Option 4", "Option 5"],\n' +
+        '      "question": "Verbatim question text",\n' +
+        '      "options": ["Option A text", "Option B text", "Option C text", "Option D text", "Option E text"],\n' +
         '      "correctOption": 0,\n' +
-        '      "explanation": "Verbatim detailed solution/explanation including direction arrangement if applicable"\n' +
+        '      "sectionName": "Reasoning Ability",\n' +
+        '      "explanation": "Detailed verbatim solution"\n' +
         '    }\n' +
         '  ]\n' +
         '}\n';
@@ -99,15 +104,46 @@ ${prompt}
         contentsInput = formattedPrompt;
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: contentsInput,
-        config: {
-          systemInstruction: systemInstruction || defaultSystemInstruction,
-        },
-      });
+      // Try list of supported models with automatic retries on 503 / 429 / rate limits
+      const candidateModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+      let lastError: any = null;
+      let responseText = '';
 
-      res.json({ text: response.text });
+      for (const modelName of candidateModels) {
+        let attempts = 0;
+        const maxAttempts = 2;
+        while (attempts < maxAttempts) {
+          try {
+            attempts++;
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents: contentsInput,
+              config: {
+                systemInstruction: systemInstruction || defaultSystemInstruction,
+                maxOutputTokens: 8192,
+              },
+            });
+            if (response && response.text) {
+              responseText = response.text;
+              break;
+            }
+          } catch (err: any) {
+            lastError = err;
+            console.warn(`Model ${modelName} attempt ${attempts} failed:`, err.message || err);
+            // If service unavailable or rate limit, pause briefly before retrying or switching model
+            if (attempts < maxAttempts) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
+          }
+        }
+        if (responseText) break;
+      }
+
+      if (!responseText) {
+        throw lastError || new Error('AI Service temporarily unavailable. Please try again in a few seconds.');
+      }
+
+      res.json({ text: responseText });
     } catch (err: any) {
       console.error('Gemini API Error in /api/ai-assistant:', err);
       res.status(500).json({ error: err.message || 'Error processing request with Gemini AI' });

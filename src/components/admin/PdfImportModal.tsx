@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Question, QuestionOption, QuestionType, TestSection } from '../../types';
 import { FileText, Upload, AlertCircle, CheckCircle, X, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { parseExtractedTestJSON } from '../../utils/aiJsonParser';
+import { parsePdfFileToText } from '../../utils/pdfParser';
+import { parseDocxFile } from '../../utils/docxParser';
 
 interface PdfImportModalProps {
   isOpen: boolean;
@@ -56,7 +59,16 @@ export const PdfImportModal: React.FC<PdfImportModalProps> = ({
           }
 
           let rawText = '';
-          if (fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.csv')) {
+          if (fileNameLower.endsWith('.pdf')) {
+            try {
+              rawText = await parsePdfFileToText(file);
+            } catch (err) {}
+          } else if (fileNameLower.endsWith('.docx')) {
+            try {
+              const docRes = await parseDocxFile(file);
+              rawText = docRes.rawText || '';
+            } catch (err) {}
+          } else if (fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.csv')) {
             try {
               rawText = await file.text();
             } catch (err) {}
@@ -80,7 +92,7 @@ CRITICAL INSTRUCTIONS FOR CLASSIFYING & FORMATTING QUESTIONS:
    - Detect correct answer keys verbatim from answer sheets, solution keys, or bold choices (e.g. "14) Answer: E" -> correctOption 4, "15) Answer: B" -> correctOption 1, "Answer: C" -> correctOption 2).
    - Extract ALL option choices verbatim (A, B, C, D, E). Support 4 or 5 options accurately. Do not include option labels "A.", "B." inside option text strings.`;
           if (rawText) {
-            promptToSend += `\n\n[FILE TEXT CONTENT]\n${rawText.slice(0, 30000)}`;
+            promptToSend += `\n\n[FILE TEXT CONTENT]\n${rawText.slice(0, 35000)}`;
           }
 
           const response = await fetch('/api/ai-assistant', {
@@ -103,80 +115,40 @@ CRITICAL INSTRUCTIONS FOR CLASSIFYING & FORMATTING QUESTIONS:
           const data = await response.json();
           const textResponse = data.text || '';
 
-          // Parse JSON from code block
-          let strToParse = textResponse;
-          const codeBlockMatch = textResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-          if (codeBlockMatch) {
-            strToParse = codeBlockMatch[1].trim();
-          } else {
-            const firstBrace = textResponse.indexOf('{');
-            const lastBrace = textResponse.lastIndexOf('}');
-            const firstBracket = textResponse.indexOf('[');
-            const lastBracket = textResponse.lastIndexOf(']');
-
-            if (firstBrace !== -1 && lastBrace > firstBrace && (firstBracket === -1 || firstBrace < firstBracket)) {
-              strToParse = textResponse.substring(firstBrace, lastBrace + 1);
-            } else if (firstBracket !== -1 && lastBracket > firstBracket) {
-              strToParse = textResponse.substring(firstBracket, lastBracket + 1);
-            }
+          const parsedResult = parseExtractedTestJSON(textResponse, rawText);
+          if (!parsedResult || !parsedResult.questions || parsedResult.questions.length === 0) {
+            throw new Error('No valid question objects could be extracted from the PDF/document.');
           }
 
-          const parsed = JSON.parse(strToParse);
-          let rawQs: any[] = [];
-          if (Array.isArray(parsed)) {
-            rawQs = parsed;
-          } else if (parsed && typeof parsed === 'object') {
-            rawQs = parsed.questions || parsed.questionList || parsed.items || parsed.data || parsed.mcqs || [];
-            setTestMetaData({
-              title: parsed.title,
-              subject: parsed.subject,
-              category: parsed.category,
-            });
-          }
-
-          if (rawQs.length === 0) {
-            throw new Error('No valid question objects could be parsed from the PDF/document.');
-          }
+          setTestMetaData({
+            title: parsedResult.title,
+            subject: parsedResult.subject,
+            category: parsedResult.category,
+          });
 
           const targetSec = sections.find((s) => s.id === selectedSectionId);
 
-          const formattedQs: Omit<Question, 'id'>[] = rawQs.map((q: any, idx: number) => {
-            let qText = q.question || q.questionText || q.text || `Question ${idx + 1}`;
-            const directionPrefix = q.direction || q.passage || q.groupDirection;
-            if (directionPrefix && typeof directionPrefix === 'string' && !qText.toLowerCase().includes(directionPrefix.toLowerCase().slice(0, 15))) {
-              qText = `${directionPrefix}\n\n${qText}`;
-            }
+          const formattedQs: Omit<Question, 'id'>[] = parsedResult.questions.map((q: any) => {
+            const rawOpts = Array.isArray(q.options) ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'];
+            const correctIndex = typeof q.correctOption === 'number' ? q.correctOption : 0;
 
-            let qExpl = q.explanation || q.solution || '';
-            const dirExpl = q.directionExplanation || q.directionSolution || q.groupSolution;
-            if (dirExpl && typeof dirExpl === 'string' && !qExpl.toLowerCase().includes(dirExpl.toLowerCase().slice(0, 15))) {
-              qExpl = `${dirExpl}\n\n${qExpl}`;
-            }
-
-            const rawOpts: string[] = Array.isArray(q.options) && q.options.length > 0
-              ? q.options.map((opt: any) => String(opt).trim())
-              : ['Option A', 'Option B', 'Option C', 'Option D'];
-
-            const correctIndex = typeof q.correctOption === 'number'
-              ? q.correctOption
-              : typeof q.answer === 'number'
-              ? q.answer
-              : 0;
-
-            const options: QuestionOption[] = rawOpts.map((optText, oIdx) => ({
-              id: `opt-${oIdx + 1}`,
-              text: optText,
-              isCorrect: oIdx === correctIndex,
-            }));
+            const options: QuestionOption[] = rawOpts.map((o: any, oIdx: number) => {
+              const optText = typeof o === 'string' ? o : o.text || String(o);
+              return {
+                id: `opt-${oIdx + 1}`,
+                text: optText,
+                isCorrect: oIdx === correctIndex,
+              };
+            });
 
             return {
-              text: qText,
+              text: q.question || q.text || '',
               options,
-              explanation: qExpl,
+              explanation: q.explanation || '',
               sectionId: selectedSectionId || undefined,
-              subject: targetSec ? targetSec.name : parsed.subject || 'General',
-              positiveMarks: targetSec ? targetSec.positiveMarks : 2,
-              negativeMarks: targetSec ? targetSec.negativeMarks : 0.5,
+              subject: q.sectionName || (targetSec ? targetSec.name : parsedResult.subject || 'General'),
+              positiveMarks: targetSec ? targetSec.positiveMarks : 1,
+              negativeMarks: targetSec ? targetSec.negativeMarks : 0.25,
               type: 'mcq_single' as QuestionType,
               difficulty: (q.difficulty as 'easy' | 'medium' | 'hard') || 'medium',
             };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { parseDocxFile, parseQuestionText } from '../../utils/docxParser';
+import { parseExtractedTestJSON } from '../../utils/aiJsonParser';
+import { parsePdfFileToText } from '../../utils/pdfParser';
 import {
   Bot,
   Zap,
@@ -45,6 +47,7 @@ interface ChatMessage {
   timestamp: string;
   isDiagnosisReport?: boolean;
   attachedFileName?: string;
+  rawText?: string;
 }
 
 // Extracted Verbatim Test Preview Card Component
@@ -218,6 +221,12 @@ export const AIAgentPanel: React.FC = () => {
       } catch (err) {
         console.warn('Docx client pre-parse note:', err);
       }
+    } else if (fileNameLower.endsWith('.pdf')) {
+      try {
+        extractedRawText = await parsePdfFileToText(file);
+      } catch (err) {
+        console.warn('PDF client pre-parse note:', err);
+      }
     } else if (
       fileNameLower.endsWith('.txt') ||
       fileNameLower.endsWith('.csv') ||
@@ -260,13 +269,44 @@ export const AIAgentPanel: React.FC = () => {
   };
 
   const handleSaveExtractedTest = (parsedTest: any) => {
+    let testSections: any[] | undefined = undefined;
+    if (Array.isArray(parsedTest.sections) && parsedTest.sections.length > 0) {
+      testSections = parsedTest.sections.map((sec: any, sIdx: number) => ({
+        id: sec.id || `sec-${sIdx + 1}`,
+        name: sec.name || `Section ${sIdx + 1}`,
+        durationMinutes: Number(sec.durationMinutes) || 20,
+        positiveMarks: Number(sec.positiveMarks) || Number(parsedTest.marksPerQuestion) || 1,
+        negativeMarks: Number(sec.negativeMarks) || Number(parsedTest.negativeMarks) || 0.25,
+      }));
+    } else {
+      const detectedSections = new Set<string>();
+      if (Array.isArray(parsedTest.questions)) {
+        parsedTest.questions.forEach((q: any) => {
+          if (q.sectionName) detectedSections.add(q.sectionName);
+          else if (q.section) detectedSections.add(q.section);
+          else if (q.subject && q.subject !== 'General' && q.subject !== parsedTest.subject) detectedSections.add(q.subject);
+        });
+      }
+      if (detectedSections.size > 0) {
+        testSections = Array.from(detectedSections).map((secName, sIdx) => ({
+          id: `sec-${sIdx + 1}`,
+          name: secName,
+          durationMinutes: Math.round((Number(parsedTest.durationMinutes) || 60) / detectedSections.size),
+          positiveMarks: Number(parsedTest.marksPerQuestion) || 1,
+          negativeMarks: Number(parsedTest.negativeMarks) || 0.25,
+        }));
+      }
+    }
+
     createOrUpdateTest({
       title: parsedTest.title || 'Extracted Verbatim Mock Test',
-      subject: parsedTest.subject || 'General',
+      subject: parsedTest.subject || 'Full Length Mock Test',
       category: parsedTest.category || 'General Competition',
+      testType: testSections && testSections.length > 0 ? 'full' : 'subjective',
+      sections: testSections,
       durationMinutes: Number(parsedTest.durationMinutes) || 60,
-      marksPerQuestion: Number(parsedTest.marksPerQuestion) || 2,
-      negativeMarks: Number(parsedTest.negativeMarks) || 0.5,
+      marksPerQuestion: Number(parsedTest.marksPerQuestion) || 1,
+      negativeMarks: Number(parsedTest.negativeMarks) || 0.25,
       instructions: parsedTest.instructions || 'All questions are compulsory.',
       isPublished: true,
       questions: Array.isArray(parsedTest.questions)
@@ -292,6 +332,9 @@ export const AIAgentPanel: React.FC = () => {
               isCorrect: oIdx === correctIndex,
             }));
 
+            const qSecName = q.sectionName || q.section || q.subject || '';
+            const matchedSec = testSections?.find(s => s.name.toLowerCase() === qSecName.toLowerCase());
+
             return {
               id: `extracted-q-${Date.now()}-${idx}`,
               question: qText,
@@ -299,10 +342,12 @@ export const AIAgentPanel: React.FC = () => {
               options,
               correctOption: correctIndex,
               explanation: qExpl,
-              subject: parsedTest.subject || 'General',
-              positiveMarks: Number(parsedTest.marksPerQuestion) || 2,
-              negativeMarks: Number(parsedTest.negativeMarks) || 0.5,
-              type: 'single_choice',
+              sectionId: matchedSec ? matchedSec.id : undefined,
+              subject: qSecName || parsedTest.subject || 'General',
+              positiveMarks: Number(parsedTest.marksPerQuestion) || 1,
+              negativeMarks: Number(parsedTest.negativeMarks) || 0.25,
+              type: 'mcq_single' as any,
+              difficulty: 'medium' as any,
             };
           })
         : [],
@@ -311,122 +356,13 @@ export const AIAgentPanel: React.FC = () => {
     setRepairSuccessMsg(
       `🎉 Successfully saved and published verbatim mock test: "${parsedTest.title || 'Extracted Mock Test'}" with ${
         parsedTest.questions?.length || 0
-      } questions!`
+      } questions across ${testSections?.length || 1} section(s)!`
     );
     runHealthCheck();
   };
 
-  const tryParseTestJSON = (text: string) => {
-    if (!text) return null;
-
-    // 1. Try finding JSON code block or JSON object/array
-    try {
-      let strToParse = text;
-
-      // Extract content inside ```json ... ``` or ``` ... ```
-      const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-      if (codeBlockMatch) {
-        strToParse = codeBlockMatch[1].trim();
-      } else {
-        // Try finding outermost { ... } or [ ... ]
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-        const firstBracket = text.indexOf('[');
-        const lastBracket = text.lastIndexOf(']');
-
-        if (firstBrace !== -1 && lastBrace > firstBrace && (firstBracket === -1 || firstBrace < firstBracket)) {
-          strToParse = text.substring(firstBrace, lastBrace + 1);
-        } else if (firstBracket !== -1 && lastBracket > firstBracket) {
-          strToParse = text.substring(firstBracket, lastBracket + 1);
-        }
-      }
-
-      const parsed = JSON.parse(strToParse);
-
-      const formatQuestionItem = (item: any, idx: number) => {
-        let qText = item.question || item.questionText || item.q || item.title || `Question ${idx + 1}`;
-        const dirPrefix = item.direction || item.passage || item.groupDirection;
-        if (dirPrefix && typeof dirPrefix === 'string' && !qText.toLowerCase().includes(dirPrefix.toLowerCase().slice(0, 15))) {
-          qText = `${dirPrefix}\n\n${qText}`;
-        }
-
-        let qExpl = item.explanation || item.solution || item.exp || '';
-        const dirExpl = item.directionExplanation || item.directionSolution || item.groupSolution;
-        if (dirExpl && typeof dirExpl === 'string' && !qExpl.toLowerCase().includes(dirExpl.toLowerCase().slice(0, 15))) {
-          qExpl = `${dirExpl}\n\n${qExpl}`;
-        }
-
-        return {
-          question: qText,
-          options: Array.isArray(item.options) ? item.options : Array.isArray(item.choices) ? item.choices : ['Option A', 'Option B', 'Option C', 'Option D'],
-          correctOption: typeof item.correctOption === 'number' ? item.correctOption : typeof item.answer === 'number' ? item.answer : 0,
-          explanation: qExpl,
-        };
-      };
-
-      // Handle Array of questions
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const questions = parsed.map(formatQuestionItem);
-        return {
-          title: 'Extracted Verbatim Mock Test',
-          subject: 'General',
-          questions,
-        };
-      }
-
-      // Handle Object containing questions list under various key names
-      if (parsed && typeof parsed === 'object') {
-        const rawQs =
-          parsed.questions ||
-          parsed.questionList ||
-          parsed.items ||
-          parsed.data ||
-          parsed.mcqs ||
-          parsed.testQuestions;
-
-        if (Array.isArray(rawQs) && rawQs.length > 0) {
-          const questions = rawQs.map(formatQuestionItem);
-
-          return {
-            title: parsed.title || parsed.testTitle || parsed.name || 'Extracted Verbatim Mock Test',
-            subject: parsed.subject || 'General',
-            category: parsed.category || 'General Competition',
-            durationMinutes: parsed.durationMinutes || 60,
-            marksPerQuestion: parsed.marksPerQuestion || 2,
-            negativeMarks: parsed.negativeMarks || 0.5,
-            instructions: parsed.instructions || 'All questions are compulsory.',
-            questions,
-          };
-        }
-      }
-    } catch (e) {
-      // JSON parse failed, proceed to fallback regex parser
-    }
-
-    // 2. Fallback: Parse questions from plain text if AI returned Q1. / Question 1 / Option A / Ans format
-    try {
-      const parsedTextResult = parseQuestionText(text);
-      if (parsedTextResult && parsedTextResult.questions && parsedTextResult.questions.length > 0) {
-        return {
-          title: 'Extracted Verbatim Mock Test',
-          subject: 'General',
-          questions: parsedTextResult.questions.map((q: any) => ({
-            question: q.question || q.text || '',
-            options: Array.isArray(q.options)
-              ? q.options.map((o: any) => (typeof o === 'string' ? o : o.text))
-              : ['A', 'B', 'C', 'D'],
-            correctOption: Array.isArray(q.options)
-              ? Math.max(0, q.options.findIndex((o: any) => typeof o !== 'string' && o.isCorrect))
-              : 0,
-            explanation: q.explanation || '',
-          })),
-        };
-      }
-    } catch (e) {
-      // Ignored
-    }
-
-    return null;
+  const tryParseTestJSON = (text: string, fallbackRawText?: string) => {
+    return parseExtractedTestJSON(text, fallbackRawText || attachedFile?.rawText);
   };
 
   // Perform automated system audit
@@ -690,6 +626,7 @@ Return ONLY a valid JSON object matching this TypeScript structure:
       text: displayMsgText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       attachedFileName: currentFile?.name,
+      rawText: currentFile?.rawText,
     };
 
     setChatMessages((prev) => [...prev, newMsg]);
@@ -698,17 +635,22 @@ Return ONLY a valid JSON object matching this TypeScript structure:
     try {
       let promptToSend = userText;
       if (currentFile && currentFile.rawText) {
-        promptToSend += `\n\n[FILE TEXT CONTENT]\n${currentFile.rawText.slice(0, 30000)}`;
+        promptToSend += `\n\n[FILE TEXT CONTENT]\n${currentFile.rawText.slice(0, 35000)}`;
       }
 
       promptToSend += `\n\nCRITICAL MANDATE FOR FILE EXTRACTED CONTENT:
-1. SINGLE QUESTIONS vs DIRECTION / SET QUESTIONS:
-   - For standalone single questions (e.g. Q13), extract as clean single questions without any direction prefix.
-   - For direction / set questions (e.g. Direction 20-24, Direction 14-16), prepend the full Direction / Passage text at the beginning of EVERY question in that set (e.g. Q20, Q21, Q22, Q23, Q24). Format: "Direction (20-24): [Full Direction / Passage text]\n\n[Question text]".
-   - For detailed solutions of direction questions (e.g. Direction 14-16 seating arrangement diagram/solution), include the full arrangement diagram/solution in the "explanation" field for ALL questions in that range (Q14, Q15, Q16).
-2. Extract ALL questions, options (including 5-option choices A to E), correct answer keys (e.g., "14) Answer: E" -> correctOption 4, "15) Answer: B" -> correctOption 1), and detailed explanations verbatim.
-3. ABSOLUTELY ZERO CONTENT ALTERATIONS OR PARAPHRASING. Keep all words verbatim.
-4. Return the extracted mock test formatted inside a \`\`\`json ... \`\`\` block matching the test schema so the user can save it with 1 click.`;
+1. EXTRACT ALL QUESTIONS (e.g. ALL 100 QUESTIONS in full length papers):
+   - Extract EVERY SINGLE QUESTION from Q1 to Q100 (or as many as exist in the document). Do NOT stop or truncate early!
+2. DETECT SECTIONS & SUBJECTS (Reasoning Ability, English Language, Quantitative Aptitude):
+   - Categorize questions into their respective sections (e.g., "Reasoning Ability", "English Language", "Quantitative Aptitude").
+   - Populate the "sections" array in test JSON and tag each question with "sectionName".
+3. SINGLE QUESTIONS vs DIRECTION / SET QUESTIONS:
+   - Standalone questions (e.g. Q13): extract as clean single question without direction prefix.
+   - Grouped direction/passage questions (e.g. Direction 20-24, Direction 14-16): prepend full Direction / Passage text at the beginning of EVERY question in that set (e.g. Q20, Q21, Q22, Q23, Q24). Format: "Direction (20-24): [Full Direction / Passage text]\n\n[Question text]".
+   - Detailed solutions: Include the full arrangement diagram/solution in the "explanation" field for ALL questions in that range (Q14, Q15, Q16).
+4. Extract ALL choices verbatim (A, B, C, D, E) and correct answer keys accurately.
+5. ABSOLUTELY ZERO CONTENT ALTERATIONS OR PARAPHRASING. Keep all text verbatim.
+6. Return the complete extracted mock test formatted inside a \`\`\`json ... \`\`\` block matching the test schema.`;
 
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -747,6 +689,7 @@ Return ONLY a valid JSON object matching this TypeScript structure:
           sender: 'ai',
           text: replyText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          rawText: currentFile?.rawText,
         },
       ]);
     } catch (err: any) {
@@ -779,7 +722,7 @@ Return ONLY a valid JSON object matching this TypeScript structure:
               Super Admin System Diagnostics & AI Agent
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Powered by <strong className="text-purple-300 font-semibold">Gemini 2.5 Flash</strong>.
+              Powered by <strong className="text-purple-300 font-semibold">Gemini 3.6 Flash</strong>.
               Monitors test integrity, teacher licenses, auto-repairs data anomalies, and provides instant system troubleshooting assistance.
             </p>
           </div>
@@ -1001,7 +944,7 @@ Return ONLY a valid JSON object matching this TypeScript structure:
           {/* Message List */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50">
             {chatMessages.map((msg, index) => {
-              const parsedTest = msg.sender === 'ai' ? tryParseTestJSON(msg.text) : null;
+              const parsedTest = msg.sender === 'ai' ? tryParseTestJSON(msg.text, msg.rawText) : null;
               return (
                 <div
                   key={index}
@@ -1020,7 +963,16 @@ Return ONLY a valid JSON object matching this TypeScript structure:
                         : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none font-normal'
                     }`}
                   >
-                    <div>{msg.text}</div>
+                    <div>
+                      {msg.sender === 'ai' ? (
+                        (() => {
+                          const cleanedText = msg.text.replace(/```(?:json)?[\s\S]*?```/gi, '').trim();
+                          return cleanedText || (parsedTest ? '✅ mock test extract ho gaya hai. Neeche diye gaye button se publish karein:' : msg.text);
+                        })()
+                      ) : (
+                        msg.text
+                      )}
+                    </div>
 
                     {/* Render Interactive Verbatim Extracted Mock Test Preview if valid JSON found */}
                     {parsedTest && (
